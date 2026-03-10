@@ -998,7 +998,7 @@ struct CaloriePillView: View {
     private let tiers = 5
     private let maxCalories = 1000.0
     private let lCells: [(x: Int, y: Int)] = [
-        (0, 0), (0, 1), (0, 2), (1, 2), (2, 2)
+        (0, 2), (1, 2), (2, 2), (0, 1), (0, 0)
     ]
 
     private var filledCount: Int {
@@ -1024,7 +1024,7 @@ struct CaloriePillView: View {
                         )
                 }
 
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
                     .fill(Color.green.opacity(0.14))
                     .frame(width: badgeSize, height: badgeSize)
                     .offset(x: cell + spacing, y: 0)
@@ -1134,6 +1134,12 @@ struct WeeklyTotalsCardView: View {
         return max(max(maxDayCalories, maxGoal) * 1.1, 1)
     }
 
+    private var averageGoal: Double {
+        let goals = summary.days.map(\.goal)
+        guard !goals.isEmpty else { return 0 }
+        return goals.reduce(0, +) / Double(goals.count)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
@@ -1145,14 +1151,18 @@ struct WeeklyTotalsCardView: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(alignment: .bottom, spacing: 10) {
-                ForEach(summary.days) { day in
-                    WeekDayBarView(day: day, maxScaleValue: maxScaleValue)
+            HStack(alignment: .bottom, spacing: 8) {
+                WeekScaleView(maxScaleValue: maxScaleValue)
+
+                HStack(alignment: .bottom, spacing: 10) {
+                    ForEach(summary.days) { day in
+                        WeekDayBarView(day: day, maxScaleValue: maxScaleValue)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("Goal line marks each day target.")
+            Text("Goal line (~\(Int(averageGoal)) kcal) marks each day target.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -1170,8 +1180,8 @@ struct WeeklyTotalsCardView: View {
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color(red: 0.62, green: 0.79, blue: 0.96),
-                                    Color(red: 0.46, green: 0.65, blue: 0.90)
+                                    Color(red: 0.69, green: 0.54, blue: 0.95),
+                                    Color(red: 0.84, green: 0.70, blue: 0.98)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -1182,6 +1192,27 @@ struct WeeklyTotalsCardView: View {
         )
         .padding(.horizontal, 6)
         .padding(.bottom, 12)
+    }
+}
+
+private struct WeekScaleView: View {
+    let maxScaleValue: Double
+
+    private var top: Int { Int(maxScaleValue.rounded()) }
+    private var mid: Int { Int((maxScaleValue * 0.5).rounded()) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("\(top)")
+            Spacer()
+            Text("\(mid)")
+            Spacer()
+            Text("0")
+        }
+        .font(.system(size: 9, weight: .semibold))
+        .foregroundStyle(.secondary)
+        .frame(width: 28, height: 108, alignment: .trailing)
+        .padding(.bottom, 16)
     }
 }
 
@@ -1212,6 +1243,10 @@ private struct WeekDayBarView: View {
 
     var body: some View {
         VStack(spacing: 6) {
+            Text("\(Int(day.calories))")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+
             GeometryReader { geo in
                 let height = geo.size.height
                 let caloriesHeight = height * CGFloat(caloriesClamped / safeMax)
