@@ -757,98 +757,92 @@ private struct LogRowView: View {
     }
 
     private var summaryContent: some View {
-        HStack(alignment: .top, spacing: 12) {
-            CalorieTierBarView(
-                calories: entry.estimate.dietary_energy_kcal,
-                height: baselineSummaryHeight > 0 ? baselineSummaryHeight : summaryHeight
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                CaloriePillView(calories: entry.estimate.dietary_energy_kcal)
+                Text(entry.meal)
+                    .font(.headline)
+                    .lineLimit(2)
+                Spacer()
+                Button(action: onEdit) {
+                    Label("Edit", systemImage: "pencil")
+                        .labelStyle(.iconOnly)
+                        .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isUpdating)
+            }
+            Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            MacroBarView(
+                protein: entry.estimate.protein_g,
+                carbs: entry.estimate.carbs_g,
+                fat: entry.estimate.fat_total_g
             )
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 10) {
-                    CaloriePillView(calories: entry.estimate.dietary_energy_kcal)
-                    Text(entry.meal)
-                        .font(.headline)
-                        .lineLimit(2)
-                    Spacer()
-                    Button(action: onEdit) {
-                        Label("Edit", systemImage: "pencil")
-                            .labelStyle(.iconOnly)
-                            .font(.subheadline)
+
+            HStack {
+                Spacer()
+                Button(action: {
+                    if !isEditing {
+                        toggleExpanded()
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(isUpdating)
-                }
-                Text(entry.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
+                }) {
+                    HStack(spacing: 6) {
+                        Text(isExpanded ? "Collapse" : "Expand")
+                            .font(.caption.weight(.semibold))
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                    }
                     .foregroundStyle(.secondary)
-
-                MacroBarView(
-                    protein: entry.estimate.protein_g,
-                    carbs: entry.estimate.carbs_g,
-                    fat: entry.estimate.fat_total_g
-                )
-
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        if !isEditing {
-                            toggleExpanded()
-                        }
-                    }) {
-                        HStack(spacing: 6) {
-                            Text(isExpanded ? "Collapse" : "Expand")
-                                .font(.caption.weight(.semibold))
-                            Image(systemName: "chevron.down")
-                                .font(.caption.weight(.semibold))
-                                .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
                 }
+                .buttonStyle(.plain)
+            }
 
-                if isEditing {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Edit meal")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack(spacing: 8) {
-                            TextField("Meal description", text: $draftMeal, axis: .vertical)
-                                .textInputAutocapitalization(.sentences)
-                                .lineLimit(2, reservesSpace: true)
-                            Button(action: onUpdate) {
-                                if isUpdating {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Text("Update")
-                                        .font(.subheadline.weight(.semibold))
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(isUpdating || draftMeal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                        .toolbar {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Spacer()
-                                Button("Done") {
-                                    #if canImport(UIKit)
-                                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                    #endif
-                                }
+            if isEditing {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Edit meal")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        TextField("Meal description", text: $draftMeal, axis: .vertical)
+                            .textInputAutocapitalization(.sentences)
+                            .lineLimit(2, reservesSpace: true)
+                        Button(action: onUpdate) {
+                            if isUpdating {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Update")
+                                    .font(.subheadline.weight(.semibold))
                             }
                         }
-                        Button("Close") {
-                            #if canImport(UIKit)
-                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                            #endif
-                            onCancelEdit()
-                        }
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isUpdating || draftMeal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-                    .padding(10)
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") {
+                                #if canImport(UIKit)
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                #endif
+                            }
+                        }
+                    }
+                    Button("Close") {
+                        #if canImport(UIKit)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        #endif
+                        onCancelEdit()
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 }
+                .padding(10)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
         }
     }
@@ -1001,39 +995,54 @@ struct RoundedCornerShape: Shape {
 
 struct CaloriePillView: View {
     let calories: Double
-
-    var body: some View {
-        Text(String(format: "%.0f", calories))
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(Color.green)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.green.opacity(0.12))
-            )
-    }
-}
-
-struct CalorieTierBarView: View {
-    let calories: Double
-    let height: CGFloat
     private let tiers = 5
     private let maxCalories = 1000.0
+    private let lCells: [(x: Int, y: Int)] = [
+        (0, 0), (0, 1), (0, 2), (1, 2), (2, 2)
+    ]
+
+    private var filledCount: Int {
+        let clamped = min(max(calories, 0), maxCalories)
+        return min(tiers, max(0, Int(ceil(clamped / (maxCalories / Double(tiers))))))
+    }
 
     var body: some View {
-        let clamped = min(max(calories, 0), maxCalories)
-        let filled = Int(ceil(clamped / (maxCalories / Double(tiers))))
-        GeometryReader { _ in
-            VStack(spacing: 4) {
-                ForEach((0..<tiers).reversed(), id: \.self) { idx in
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            let spacing: CGFloat = 2
+            let cell = (side - (spacing * 2)) / 3
+            let badgeSize = (cell * 2) + spacing
+
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(lCells.enumerated()), id: \.offset) { index, coord in
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(idx < filled ? Color.green : Color.green.opacity(0.2))
-                        .frame(maxWidth: .infinity)
+                        .fill(index < filledCount ? Color.green : Color.green.opacity(0.22))
+                        .frame(width: cell, height: cell)
+                        .offset(
+                            x: CGFloat(coord.x) * (cell + spacing),
+                            y: CGFloat(coord.y) * (cell + spacing)
+                        )
                 }
+
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.green.opacity(0.14))
+                    .frame(width: badgeSize, height: badgeSize)
+                    .offset(x: cell + spacing, y: 0)
+
+                VStack(spacing: 1) {
+                    Text(String(format: "%.0f", calories))
+                        .font(.caption2.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                    Text("kcal")
+                        .font(.system(size: 8, weight: .medium))
+                }
+                .foregroundStyle(Color.green)
+                .frame(width: badgeSize, height: badgeSize)
+                .offset(x: cell + spacing, y: 0)
             }
         }
-        .frame(width: 10, height: max(height, 10))
+        .frame(width: 42, height: 42)
     }
 }
 
@@ -1110,6 +1119,7 @@ struct DayTotalsHeaderView: View {
                 )
         )
         .padding(.horizontal, 6)
+        .padding(.top, 6)
         .padding(.bottom, 6)
     }
 }

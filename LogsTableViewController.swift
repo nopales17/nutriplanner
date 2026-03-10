@@ -827,79 +827,71 @@ private struct LogRowCardView: View {
 
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 12) {
-                    CalorieTierBarView(
-                        calories: log.estimate.dietary_energy_kcal,
-                        height: 72
-                    )
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .top, spacing: 10) {
-                            CaloriePillView(calories: log.estimate.dietary_energy_kcal)
-                            Text(log.meal)
-                                .font(.headline)
-                                .lineLimit(2)
-                            Spacer()
-                            Button(action: onEdit) {
-                                Label("Edit", systemImage: "pencil")
-                                    .labelStyle(.iconOnly)
-                                    .font(.subheadline)
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(isHeightAnimating)
+                HStack(alignment: .top, spacing: 10) {
+                    CaloriePillView(calories: log.estimate.dietary_energy_kcal)
+                    Text(log.meal)
+                        .font(.headline)
+                        .lineLimit(2)
+                    Spacer()
+                    Button(action: onEdit) {
+                        Label("Edit", systemImage: "pencil")
+                            .labelStyle(.iconOnly)
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isHeightAnimating)
+                }
+                Text(log.date.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                MacroBarView(
+                    protein: log.estimate.protein_g,
+                    carbs: log.estimate.carbs_g,
+                    fat: log.estimate.fat_total_g
+                )
+
+                HStack {
+                    Spacer()
+                    Button(action: onToggleExpanded) {
+                        HStack(spacing: 6) {
+                            Text(isExpanded ? "Collapse" : "Expand")
+                                .font(.caption.weight(.semibold))
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.semibold))
+                                .rotationEffect(.degrees(isExpanded ? 180 : 0))
                         }
-                        Text(log.date.formatted(date: .abbreviated, time: .shortened))
+                        .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isHeightAnimating)
+                }
+
+                if isEditing {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Edit meal")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-
-                        MacroBarView(
-                            protein: log.estimate.protein_g,
-                            carbs: log.estimate.carbs_g,
-                            fat: log.estimate.fat_total_g
-                        )
-
-                        HStack {
-                            Spacer()
-                            Button(action: onToggleExpanded) {
-                                HStack(spacing: 6) {
-                                    Text(isExpanded ? "Collapse" : "Expand")
-                                        .font(.caption.weight(.semibold))
-                                    Image(systemName: "chevron.down")
-                                        .font(.caption.weight(.semibold))
-                                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                                }
-                                .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            TextField("Meal description", text: Binding(
+                                get: { draftMeal },
+                                set: { onDraftChange($0) }
+                            ), axis: .vertical)
+                            .textInputAutocapitalization(.sentences)
+                            .lineLimit(2, reservesSpace: true)
+                            Button(action: onUpdate) {
+                                Text("Update")
+                                    .font(.subheadline.weight(.semibold))
                             }
-                            .buttonStyle(.plain)
-                            .disabled(isHeightAnimating)
+                            .buttonStyle(.borderedProminent)
+                            .disabled(draftMeal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
-
-                        if isEditing {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Edit meal")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                HStack(spacing: 8) {
-                                    TextField("Meal description", text: Binding(
-                                        get: { draftMeal },
-                                        set: { onDraftChange($0) }
-                                    ), axis: .vertical)
-                                    .textInputAutocapitalization(.sentences)
-                                    .lineLimit(2, reservesSpace: true)
-                                    Button(action: onUpdate) {
-                                        Text("Update")
-                                            .font(.subheadline.weight(.semibold))
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(draftMeal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                                }
-                                Button("Close", action: onCancelEdit)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(10)
-                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        }
+                        Button("Close", action: onCancelEdit)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
+                    .padding(10)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
             .padding(12)
