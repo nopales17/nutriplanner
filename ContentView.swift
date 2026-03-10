@@ -1128,10 +1128,11 @@ struct WeeklyTotalsCardView: View {
     @Environment(\.colorScheme) private var colorScheme
     let summary: WeeklySummary
 
-    private var maxScaleValue: Double {
-        let maxDayCalories = summary.days.map { $0.calories }.max() ?? 0
-        let maxGoal = summary.days.map { $0.goal }.max() ?? 0
-        return max(max(maxDayCalories, maxGoal) * 1.1, 1)
+    private var weekScale: WeekScale {
+        WeekScale(
+            highestDayCalories: summary.days.map(\.calories).max() ?? 0,
+            referenceGoalCalories: averageGoal
+        )
     }
 
     private var averageGoal: Double {
@@ -1152,11 +1153,11 @@ struct WeeklyTotalsCardView: View {
             }
 
             HStack(alignment: .bottom, spacing: 8) {
-                WeekScaleView(maxScaleValue: maxScaleValue)
+                WeekScaleView(scale: weekScale)
 
                 HStack(alignment: .bottom, spacing: 10) {
                     ForEach(summary.days) { day in
-                        WeekDayBarView(day: day, maxScaleValue: maxScaleValue)
+                        WeekDayBarView(day: day, scale: weekScale)
                     }
                 }
             }
@@ -1195,33 +1196,73 @@ struct WeeklyTotalsCardView: View {
     }
 }
 
-private struct WeekScaleView: View {
-    let maxScaleValue: Double
+private struct WeekScale {
+    let topValue: Double
+    let stepValue: Double
 
-    private var top: Int { Int(maxScaleValue.rounded()) }
-    private var mid: Int { Int((maxScaleValue * 0.5).rounded()) }
+    var tickValues: [Double] {
+        let maxMultiple = floor(topValue / stepValue)
+        guard maxMultiple >= 1 else { return [0] }
+        return (0...Int(maxMultiple)).map { Double($0) * stepValue }
+    }
+
+    init(highestDayCalories: Double, referenceGoalCalories: Double) {
+        let peak = ceil(max(highestDayCalories, 1))
+        let goalReferenceTop = max(1, ceil(max(referenceGoalCalories, 0) / 0.8))
+        let dynamicTop = peak > goalReferenceTop ? peak : goalReferenceTop
+        topValue = dynamicTop
+        let rawStep = dynamicTop / 4
+        stepValue = max(1, Self.nearestNiceWholeStep(for: rawStep))
+    }
+
+    private static func nearestNiceWholeStep(for rawStep: Double) -> Double {
+        guard rawStep > 0 else { return 100 }
+        let exponent = floor(log10(rawStep))
+        let scale = pow(10, exponent)
+        let candidates = [1.0, 2.0, 2.5, 5.0, 10.0].map { $0 * scale }
+        let nearest = candidates.min { abs($0 - rawStep) < abs($1 - rawStep) } ?? rawStep
+        return max(1, nearest.rounded())
+    }
+}
+
+private struct WeekScaleView: View {
+    let scale: WeekScale
 
     var body: some View {
-        VStack(spacing: 0) {
-            Text("\(top)")
-            Spacer()
-            Text("\(mid)")
-            Spacer()
-            Text("0")
+        VStack(spacing: 6) {
+            Text("0000")
+                .font(.system(size: 9, weight: .semibold))
+                .opacity(0)
+
+            GeometryReader { geo in
+                ZStack(alignment: .topTrailing) {
+                    ForEach(scale.tickValues, id: \.self) { value in
+                        let normalized = max(0, min(1, value / max(scale.topValue, 1)))
+                        let y = geo.size.height * (1 - CGFloat(normalized))
+                        Text("\(Int(value))")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .offset(y: min(max(y - 6, 0), geo.size.height - 12))
+                    }
+                }
+            }
+            .frame(height: 108)
+
+            Text("W")
+                .font(.caption2.weight(.semibold))
+                .opacity(0)
         }
-        .font(.system(size: 9, weight: .semibold))
-        .foregroundStyle(.secondary)
-        .frame(width: 28, height: 108, alignment: .trailing)
-        .padding(.bottom, 16)
+        .frame(width: 34)
     }
 }
 
 private struct WeekDayBarView: View {
     let day: WeekDayTotal
-    let maxScaleValue: Double
+    let scale: WeekScale
 
     private var safeMax: Double {
-        max(maxScaleValue, 1)
+        max(scale.topValue, 1)
     }
 
     private var caloriesClamped: Double {

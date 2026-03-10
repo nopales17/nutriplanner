@@ -13,6 +13,18 @@ Built as a focused product-style project to demonstrate practical SwiftUI/UIKit 
 - Shows daily totals and a weekly summary visualization
 - Includes a basic daily calorie goal calculator in Settings
 
+## Demo Screenshots
+
+| Log | Estimate | Settings |
+|---|---|---|
+| ![Log screen](docs/demo/log-screen.png) | ![Estimate screen](docs/demo/estimate-screen.png) | ![Settings screen](docs/demo/settings-screen.png) |
+
+Highlights from the demo:
+
+- **Log**: Weekly calorie chart, daily macro rings, and editable meal cards
+- **Estimate**: Queue-based text input flow for fast nutrition estimation
+- **Settings**: OpenAI model selection and daily calorie goal calculator
+
 ## Why This Project Is Interesting
 
 This app is intentionally small in scope but touches several real-world concerns:
