@@ -9,6 +9,7 @@ import Foundation
 
 enum OpenAIError: Error, LocalizedError {
     case badURL
+    case timeout
     case badResponse(statusCode: Int, message: String?)
     case missingJSON
 
@@ -16,6 +17,8 @@ enum OpenAIError: Error, LocalizedError {
         switch self {
         case .badURL:
             return "Invalid OpenAI endpoint."
+        case .timeout:
+            return "OpenAI request timed out. Please try again."
         case let .badResponse(statusCode, message):
             if let message, !message.isEmpty {
                 return "OpenAI error (\(statusCode)): \(message)"
@@ -30,11 +33,16 @@ enum OpenAIError: Error, LocalizedError {
 final class OpenAIClient {
     private let apiKey: String
     private let model: String
+    private let session: URLSession
     static var lastExtractedJSON: String?
 
     init(apiKey: String, model: String = "gpt-5-nano") {
         self.apiKey = apiKey
         self.model = model
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 45
+        configuration.timeoutIntervalForResource = 60
+        self.session = URLSession(configuration: configuration)
     }
 
     func estimateNutrition(mealText: String) async throws -> NutritionEstimate {
@@ -86,7 +94,12 @@ final class OpenAIClient {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, resp) = try await URLSession.shared.data(for: req)
+        let (data, resp): (Data, URLResponse)
+        do {
+            (data, resp) = try await session.data(for: req)
+        } catch let urlError as URLError where urlError.code == .timedOut {
+            throw OpenAIError.timeout
+        }
         let statusCode = (resp as? HTTPURLResponse)?.statusCode ?? -1
         let responseSize = data.count
         let raw = String(data: data, encoding: .utf8) ?? ""

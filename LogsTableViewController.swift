@@ -4,16 +4,16 @@ import Combine
 
 final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private let tableView = UITableView(frame: .zero, style: .plain)
-    private let dayHeaderRowReuseID = "DayHeaderRowCell"
+    private let dayTotalsHeaderReuseID = DayTotalsHostingHeaderView.reuseID
     private let logTitleHeaderView = UIView()
     private let logTitleLabel = UILabel()
-    private let pinnedHeaderContainer = UIView()
-    private var pinnedHeaderHost: UIHostingController<DayTotalsHeaderView>?
-    private var pinnedHeaderHeightConstraint: NSLayoutConstraint?
-    private var pinnedHeaderDayID: Date?
+    private let weekSummaryContainer = UIView()
+    private var weekSummaryHost: UIHostingController<WeeklyTotalsCardView>?
+    private var weekSummaryHeightConstraint: NSLayoutConstraint?
     private var dataSource: UITableViewDiffableDataSource<Date, String>!
     private var rowKindByID: [String: RowKind] = [:]
     private var sections: [DaySection] = []
+    private var weeklySummary: WeeklySummary = .empty
     private var expandedID: UUID? = nil
     private var editingID: UUID? = nil
     private var draftMeal: String = ""
@@ -36,7 +36,6 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private var onUpdate: ((UUID, String) -> Void)?
 
     private enum RowKind {
-        case dayHeader(Date)
         case entry(UUID)
     }
 
@@ -58,8 +57,8 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         tableView.separatorStyle = .none
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 140
-        tableView.sectionHeaderHeight = .leastNormalMagnitude
-        tableView.estimatedSectionHeaderHeight = 0
+        tableView.sectionHeaderHeight = UITableView.automaticDimension
+        tableView.estimatedSectionHeaderHeight = 120
         tableView.sectionFooterHeight = .leastNormalMagnitude
         tableView.estimatedSectionFooterHeight = 0
         if #available(iOS 15.0, *) {
@@ -68,32 +67,13 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         tableView.delegate = self
         tableView.allowsSelection = false
         tableView.register(HostingLogCell.self, forCellReuseIdentifier: HostingLogCell.reuseID)
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: dayHeaderRowReuseID)
+        tableView.register(DayTotalsHostingHeaderView.self, forHeaderFooterViewReuseIdentifier: dayTotalsHeaderReuseID)
         configureLogTitleHeader()
-        configurePinnedHeader()
 
         dataSource = UITableViewDiffableDataSource<Date, String>(tableView: tableView) { [weak self] tableView, _, itemID in
             guard let self else { return UITableViewCell() }
             guard let kind = self.rowKindByID[itemID] else { return UITableViewCell() }
             switch kind {
-            case .dayHeader(let day):
-                let cell = tableView.dequeueReusableCell(withIdentifier: self.dayHeaderRowReuseID) ?? UITableViewCell()
-                guard let section = self.sections.first(where: { $0.id == day }) else {
-                    cell.contentConfiguration = nil
-                    return cell
-                }
-                cell.backgroundColor = .clear
-                cell.selectionStyle = .none
-                cell.contentConfiguration = UIHostingConfiguration {
-                    DayTotalsHeaderView(title: section.title, totals: section.totals)
-                }
-                .margins(.all, 0)
-                cell.alpha = 1
-                cell.transform = .identity
-                cell.contentView.alpha = 1
-                cell.layer.removeAllAnimations()
-                cell.contentView.layer.removeAllAnimations()
-                return cell
             case .entry(let itemID):
                 guard let cell = tableView.dequeueReusableCell(withIdentifier: HostingLogCell.reuseID) as? HostingLogCell else {
                     return UITableViewCell()
@@ -115,7 +95,6 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             tableView.contentInset.bottom = bottomInset
             tableView.scrollIndicatorInsets.bottom = bottomInset
         }
-        updatePinnedHeaderState()
     }
 
     private func configureLogTitleHeader() {
@@ -125,18 +104,54 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         logTitleLabel.textColor = .label
         logTitleLabel.font = .systemFont(ofSize: 34, weight: .bold)
         logTitleLabel.adjustsFontForContentSizeCategory = true
+        weekSummaryContainer.translatesAutoresizingMaskIntoConstraints = false
+        weekSummaryContainer.backgroundColor = .clear
         logTitleHeaderView.addSubview(logTitleLabel)
+        logTitleHeaderView.addSubview(weekSummaryContainer)
         NSLayoutConstraint.activate([
             logTitleLabel.leadingAnchor.constraint(equalTo: logTitleHeaderView.leadingAnchor, constant: 12),
             logTitleLabel.trailingAnchor.constraint(equalTo: logTitleHeaderView.trailingAnchor, constant: -12),
             logTitleLabel.topAnchor.constraint(equalTo: logTitleHeaderView.topAnchor, constant: 4),
-            logTitleLabel.bottomAnchor.constraint(equalTo: logTitleHeaderView.bottomAnchor, constant: -8)
+            weekSummaryContainer.leadingAnchor.constraint(equalTo: logTitleHeaderView.leadingAnchor),
+            weekSummaryContainer.trailingAnchor.constraint(equalTo: logTitleHeaderView.trailingAnchor),
+            weekSummaryContainer.topAnchor.constraint(equalTo: logTitleLabel.bottomAnchor, constant: 8),
+            weekSummaryContainer.bottomAnchor.constraint(equalTo: logTitleHeaderView.bottomAnchor, constant: -8)
         ])
+        let weekHeight = weekSummaryContainer.heightAnchor.constraint(equalToConstant: 0)
+        weekHeight.isActive = true
+        weekSummaryHeightConstraint = weekHeight
+
+        let host = UIHostingController(rootView: WeeklyTotalsCardView(summary: weeklySummary))
+        host.view.backgroundColor = .clear
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        addChild(host)
+        weekSummaryContainer.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.topAnchor.constraint(equalTo: weekSummaryContainer.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: weekSummaryContainer.bottomAnchor),
+            host.view.leadingAnchor.constraint(equalTo: weekSummaryContainer.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: weekSummaryContainer.trailingAnchor)
+        ])
+        host.didMove(toParent: self)
+        weekSummaryHost = host
     }
 
     private func updateLogTitleHeaderLayout() {
         let width = tableView.bounds.width
         guard width > 0 else { return }
+        let summaryHeight = max(
+            0,
+            ceil(
+                weekSummaryHost?.sizeThatFits(
+                    in: CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
+                ).height ?? 0
+            )
+        )
+        if weekSummaryHeightConstraint?.constant != summaryHeight {
+            weekSummaryHeightConstraint?.constant = summaryHeight
+        }
+        logTitleHeaderView.setNeedsLayout()
+        logTitleHeaderView.layoutIfNeeded()
         let fittingSize = CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
         let fittedHeight = logTitleHeaderView.systemLayoutSizeFitting(
             fittingSize,
@@ -151,39 +166,13 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         }
     }
 
-    private func configurePinnedHeader() {
-        pinnedHeaderContainer.translatesAutoresizingMaskIntoConstraints = false
-        pinnedHeaderContainer.backgroundColor = .clear
-        pinnedHeaderContainer.isUserInteractionEnabled = false
-        pinnedHeaderContainer.isHidden = true
-        view.addSubview(pinnedHeaderContainer)
-
-        NSLayoutConstraint.activate([
-            pinnedHeaderContainer.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            pinnedHeaderContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            pinnedHeaderContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor)
-        ])
-        let heightConstraint = pinnedHeaderContainer.heightAnchor.constraint(equalToConstant: 0)
-        heightConstraint.isActive = true
-        pinnedHeaderHeightConstraint = heightConstraint
-
-        let host = UIHostingController(rootView: DayTotalsHeaderView(title: "", totals: NutritionEstimate()))
-        host.view.backgroundColor = .clear
-        host.view.translatesAutoresizingMaskIntoConstraints = false
-        addChild(host)
-        pinnedHeaderContainer.addSubview(host.view)
-        NSLayoutConstraint.activate([
-            host.view.topAnchor.constraint(equalTo: pinnedHeaderContainer.topAnchor),
-            host.view.bottomAnchor.constraint(equalTo: pinnedHeaderContainer.bottomAnchor),
-            host.view.leadingAnchor.constraint(equalTo: pinnedHeaderContainer.leadingAnchor),
-            host.view.trailingAnchor.constraint(equalTo: pinnedHeaderContainer.trailingAnchor)
-        ])
-        host.didMove(toParent: self)
-        pinnedHeaderHost = host
+    private func updateWeeklySummaryHeaderContent() {
+        weekSummaryHost?.rootView = WeeklyTotalsCardView(summary: weeklySummary)
     }
 
     func update(
         sections: [DaySection],
+        weeklySummary: WeeklySummary,
         expandedID: UUID?,
         editingID: UUID?,
         draftMeal: String,
@@ -195,6 +184,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     ) {
         pendingUpdate = PendingUpdate(
             sections: sections,
+            weeklySummary: weeklySummary,
             expandedID: expandedID,
             editingID: editingID,
             draftMeal: draftMeal,
@@ -229,6 +219,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         debugLog("applyUpdate payload: sections=\(payload.sections.count) expanded=\(String(describing: payload.expandedID)) editing=\(String(describing: payload.editingID))")
 
         let previousSections = sections
+        let previousWeeklySummary = weeklySummary
         let oldExpandedID = expandedID
         let oldEditingID = editingID
 
@@ -239,8 +230,14 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         onUpdate = payload.onUpdate
         draftMeal = payload.draftMeal
         sections = payload.sections
+        weeklySummary = payload.weeklySummary
         expandedID = payload.expandedID
         editingID = payload.editingID
+
+        if previousWeeklySummary != weeklySummary {
+            updateWeeklySummaryHeaderContent()
+            updateLogTitleHeaderLayout()
+        }
 
         tableState.sections = payload.sections
         tableState.expandedID = payload.expandedID
@@ -271,9 +268,6 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             var rowKinds: [String: RowKind] = [:]
             for section in payload.sections {
                 snapshot.appendSections([section.id])
-                let headerID = Self.dayHeaderRowID(for: section.id)
-                snapshot.appendItems([headerID], toSection: section.id)
-                rowKinds[headerID] = .dayHeader(section.id)
                 for entry in section.entries {
                     let entryID = Self.entryRowID(for: entry.id)
                     snapshot.appendItems([entryID], toSection: section.id)
@@ -284,7 +278,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             debugLog("applySnapshot dataChanged sections=\(payload.sections.count) rows=\(payload.sections.flatMap { $0.entries }.count)")
             dataSource.apply(snapshot, animatingDifferences: true) { [weak self] in
                 guard let self else { return }
-                self.updatePinnedHeaderState()
+                self.refreshVisibleSectionHeaders()
                 if expandedChanged || editingChanged, !affectedIDs.isEmpty {
                     self.debugLog("startHeightAnimation after snapshot affectedIDs=\(affectedIDs)")
                     self.layoutPassID += 1
@@ -303,7 +297,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                 scheduleHeightAnimation(affectedIDs: affectedIDs)
             }
         }
-        updatePinnedHeaderState()
+        refreshVisibleSectionHeaders()
     }
 
     private func scheduleHeightAnimation(affectedIDs: [UUID]) {
@@ -492,6 +486,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
 
     private struct PendingUpdate {
         let sections: [DaySection]
+        let weeklySummary: WeeklySummary
         let expandedID: UUID?
         let editingID: UUID?
         let draftMeal: String
@@ -502,19 +497,36 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         let onUpdate: (UUID, String) -> Void
     }
 
+    private func refreshVisibleSectionHeaders() {
+        for sectionIndex in sections.indices {
+            guard let header = tableView.headerView(forSection: sectionIndex) as? DayTotalsHostingHeaderView else { continue }
+            header.apply(section: sections[sectionIndex])
+        }
+    }
+
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        guard sections.indices.contains(section) else { return nil }
+        let header = (tableView.dequeueReusableHeaderFooterView(withIdentifier: dayTotalsHeaderReuseID)
+            as? DayTotalsHostingHeaderView) ?? DayTotalsHostingHeaderView(reuseIdentifier: dayTotalsHeaderReuseID)
+        header.apply(section: sections[section])
+        return header
+    }
+
     func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
-        .leastNormalMagnitude
+        UITableView.automaticDimension
     }
 
     func tableView(_ tableView: UITableView, estimatedHeightForHeaderInSection section: Int) -> CGFloat {
-        .leastNormalMagnitude
+        120
+    }
+
+    func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
+        (view as? DayTotalsHostingHeaderView)?.forceOpaqueState()
     }
 
     func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {
         guard let rowID = dataSource.itemIdentifier(for: indexPath) else { return 140 }
         switch rowKindByID[rowID] {
-        case .dayHeader:
-            return 120
         case .entry(let id):
             if let cached = heightCache[id] {
                 return cached
@@ -533,17 +545,9 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         if let rowID = dataSource.itemIdentifier(for: indexPath), case let .entry(id)? = rowKindByID[rowID] {
             heightCache[id] = cell.contentView.bounds.height
         }
-
-        if let rowID = dataSource.itemIdentifier(for: indexPath), case .dayHeader = rowKindByID[rowID] {
-            cell.alpha = 1
-            cell.transform = .identity
-            cell.contentView.alpha = 1
-            cell.layer.removeAllAnimations()
-        }
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        updatePinnedHeaderState()
         #if DEBUG
         let offset = scrollView.contentOffset
         let inset = scrollView.adjustedContentInset
@@ -562,93 +566,70 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         return UISwipeActionsConfiguration(actions: [delete])
     }
 
-    private static func dayHeaderRowID(for day: Date) -> String {
-        "day|\(day.timeIntervalSinceReferenceDate)"
-    }
-
     private static func entryRowID(for id: UUID) -> String {
         "entry|\(id.uuidString)"
     }
+}
 
-    private func updatePinnedHeaderState() {
-        guard !sections.isEmpty, tableView.bounds.width > 0 else {
-            pinnedHeaderContainer.isHidden = true
-            return
-        }
+final class DayTotalsHostingHeaderView: UITableViewHeaderFooterView {
+    static let reuseID = "DayTotalsHostingHeaderView"
+    private var host: UIHostingController<AnyView>?
 
-        let pinY = tableView.contentOffset.y + tableView.adjustedContentInset.top
-        var currentSectionIndex: Int?
-
-        for sectionIndex in sections.indices {
-            guard sectionIndex < tableView.numberOfSections, tableView.numberOfRows(inSection: sectionIndex) > 0 else {
-                continue
-            }
-            let headerIndexPath = IndexPath(row: 0, section: sectionIndex)
-            let rect = tableView.rectForRow(at: headerIndexPath)
-            if rect.maxY > pinY {
-                currentSectionIndex = sectionIndex
-                break
-            }
-        }
-
-        guard let sectionIndex = currentSectionIndex else {
-            pinnedHeaderContainer.isHidden = true
-            return
-        }
-
-        let section = sections[sectionIndex]
-        setPinnedHeaderContent(section: section)
-
-        let measuredHeight = pinnedHeaderHost?.sizeThatFits(
-            in: CGSize(width: tableView.bounds.width, height: UIView.layoutFittingCompressedSize.height)
-        ).height ?? 0
-        let headerHeight = max(1, ceil(measuredHeight))
-        if pinnedHeaderHeightConstraint?.constant != headerHeight {
-            pinnedHeaderHeightConstraint?.constant = headerHeight
-            pinnedHeaderContainer.layoutIfNeeded()
-        }
-
-        var pushOffset: CGFloat = 0
-        if sectionIndex + 1 < sections.count,
-           sectionIndex + 1 < tableView.numberOfSections,
-           tableView.numberOfRows(inSection: sectionIndex + 1) > 0
-        {
-            let nextRect = tableView.rectForRow(at: IndexPath(row: 0, section: sectionIndex + 1))
-            let overlap = (pinY + headerHeight) - nextRect.minY
-            if overlap > 0 {
-                pushOffset = min(overlap, headerHeight)
-            }
-        }
-
-        pinnedHeaderContainer.transform = CGAffineTransform(translationX: 0, y: -pushOffset)
-        pinnedHeaderContainer.isHidden = false
-        view.bringSubviewToFront(pinnedHeaderContainer)
-        updateHeaderRowVisibility(pinnedSectionIndex: sectionIndex, pinY: pinY)
+    override init(reuseIdentifier: String?) {
+        super.init(reuseIdentifier: reuseIdentifier)
+        setup()
     }
 
-    private func setPinnedHeaderContent(section: DaySection) {
-        guard let pinnedHeaderHost else { return }
-        // Update root view each pass so totals/title stay in sync with edits/deletes.
-        pinnedHeaderHost.rootView = DayTotalsHeaderView(title: section.title, totals: section.totals)
-        pinnedHeaderDayID = section.id
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
     }
 
-    private func updateHeaderRowVisibility(pinnedSectionIndex: Int, pinY: CGFloat) {
-        for cell in tableView.visibleCells {
-            guard
-                let indexPath = tableView.indexPath(for: cell),
-                let rowID = dataSource.itemIdentifier(for: indexPath),
-                case .dayHeader = rowKindByID[rowID]
-            else { continue }
+    private func setup() {
+        backgroundView = UIView()
+        backgroundView?.backgroundColor = .clear
+        contentView.backgroundColor = .clear
+        clipsToBounds = true
+        contentView.clipsToBounds = true
+    }
 
-            if indexPath.section == pinnedSectionIndex {
-                let rect = tableView.rectForRow(at: indexPath)
-                let isUnderPinnedHeader = rect.minY <= pinY + 0.5
-                cell.contentView.alpha = isUnderPinnedHeader ? 0 : 1
-            } else {
-                cell.contentView.alpha = 1
-            }
+    private func ensureHost() {
+        guard host == nil else { return }
+        let host = UIHostingController(rootView: AnyView(EmptyView()))
+        if #available(iOS 16.0, *) {
+            host.sizingOptions = [.intrinsicContentSize]
         }
+        host.view.backgroundColor = .clear
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.topAnchor.constraint(equalTo: contentView.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            host.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
+        ])
+        self.host = host
+    }
+
+    func apply(section: DaySection) {
+        ensureHost()
+        host?.rootView = AnyView(
+            DayTotalsHeaderView(title: section.title, totals: section.totals)
+        )
+        forceOpaqueState()
+    }
+
+    func forceOpaqueState() {
+        alpha = 1
+        contentView.alpha = 1
+        layer.removeAllAnimations()
+        contentView.layer.removeAllAnimations()
+        host?.view.layer.removeAllAnimations()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        forceOpaqueState()
     }
 }
 

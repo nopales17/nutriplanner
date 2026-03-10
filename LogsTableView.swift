@@ -16,8 +16,26 @@ struct DaySection: Identifiable, Hashable {
     }
 }
 
+struct WeekDayTotal: Identifiable, Hashable {
+    let id: Date
+    let label: String
+    let calories: Double
+    let proteinCalories: Double
+    let carbsCalories: Double
+    let fatCalories: Double
+    let goal: Double
+}
+
+struct WeeklySummary: Hashable {
+    let days: [WeekDayTotal]
+    let totalCalories: Double
+
+    static let empty = WeeklySummary(days: [], totalCalories: 0)
+}
+
 struct LogsTableView: UIViewControllerRepresentable {
     let sections: [DaySection]
+    let weeklySummary: WeeklySummary
     @Binding var expandedID: UUID?
     @Binding var editingID: UUID?
     @Binding var draftMeal: String
@@ -34,6 +52,7 @@ struct LogsTableView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: LogsTableViewController, context: Context) {
         uiViewController.update(
             sections: sections,
+            weeklySummary: weeklySummary,
             expandedID: expandedID,
             editingID: editingID,
             draftMeal: draftMeal,

@@ -11,16 +11,15 @@ import UIKit
 #endif
 
 struct ContentView: View {
+    private struct EstimateQueueItem: Identifiable, Equatable {
+        let id: UUID = UUID()
+        let meal: String
+    }
+
     private enum OpenAIModelOption: String, CaseIterable, Identifiable {
         case gpt5Nano = "gpt-5-nano"
-        case gpt41Nano = "gpt-4.1-nano"
         case gpt4oMini = "gpt-4o-mini"
-        case gpt41Mini = "gpt-4.1-mini"
         case gpt5Mini = "gpt-5-mini"
-        case gpt5 = "gpt-5"
-        case gpt52 = "gpt-5.2"
-        case gpt5Pro = "gpt-5-pro"
-        case gpt52Pro = "gpt-5.2-pro"
 
         static let defaultOption: OpenAIModelOption = .gpt5Nano
 
@@ -29,23 +28,11 @@ struct ContentView: View {
         var displayName: String {
             switch self {
             case .gpt5Nano:
-                return "Budget: GPT-5 nano"
-            case .gpt41Nano:
-                return "Budget+: GPT-4.1 nano"
+                return "Cheapest: GPT-5 nano"
             case .gpt4oMini:
-                return "Balanced: GPT-4o mini"
-            case .gpt41Mini:
-                return "Balanced+: GPT-4.1 mini"
+                return "Low-cost: GPT-4o mini"
             case .gpt5Mini:
-                return "Balanced+: GPT-5 mini"
-            case .gpt5:
-                return "Quality: GPT-5"
-            case .gpt52:
-                return "Quality: GPT-5.2"
-            case .gpt5Pro:
-                return "Expert: GPT-5 pro"
-            case .gpt52Pro:
-                return "Expert+: GPT-5.2 pro"
+                return "Basic thinking: GPT-5 mini"
             }
         }
 
@@ -53,22 +40,54 @@ struct ContentView: View {
             switch self {
             case .gpt5Nano:
                 return "$0.05 input / $0.40 output per 1M tokens"
-            case .gpt41Nano:
-                return "$0.10 input / $0.40 output per 1M tokens"
             case .gpt4oMini:
                 return "$0.15 input / $0.60 output per 1M tokens"
-            case .gpt41Mini:
-                return "$0.40 input / $1.60 output per 1M tokens"
             case .gpt5Mini:
                 return "$0.25 input / $2.00 output per 1M tokens"
-            case .gpt5:
-                return "$1.25 input / $10.00 output per 1M tokens"
-            case .gpt52:
-                return "$1.75 input / $14.00 output per 1M tokens"
-            case .gpt5Pro:
-                return "$15.00 input / $120.00 output per 1M tokens"
-            case .gpt52Pro:
-                return "$21.00 input / $168.00 output per 1M tokens"
+            }
+        }
+    }
+
+    private enum GoalSex: String, CaseIterable, Identifiable {
+        case male
+        case female
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .male: return "Male"
+            case .female: return "Female"
+            }
+        }
+    }
+
+    private enum ActivityLevel: String, CaseIterable, Identifiable {
+        case sedentary
+        case light
+        case moderate
+        case active
+        case veryActive
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .sedentary: return "Sedentary"
+            case .light: return "Lightly active"
+            case .moderate: return "Moderately active"
+            case .active: return "Active"
+            case .veryActive: return "Very active"
+            }
+        }
+
+        var multiplier: Double {
+            switch self {
+            case .sedentary: return 1.2
+            case .light: return 1.375
+            case .moderate: return 1.55
+            case .active: return 1.725
+            case .veryActive: return 1.9
             }
         }
     }
@@ -76,9 +95,16 @@ struct ContentView: View {
     @AppStorage("openai_api_key") private var apiKey = ""
     @AppStorage("openai_model") private var selectedOpenAIModel = OpenAIModelOption.defaultOption.rawValue
     @AppStorage("meal_logs_json") private var logsJSON = "[]"
+    @AppStorage("daily_calorie_goal_kcal") private var dailyCalorieGoal: Double = 2200
+    @AppStorage("goal_sex") private var goalSexRawValue: String = GoalSex.male.rawValue
+    @AppStorage("goal_age") private var goalAge: Int = 30
+    @AppStorage("goal_height_cm") private var goalHeightCm: Double = 175
+    @AppStorage("goal_weight_kg") private var goalWeightKg: Double = 75
+    @AppStorage("goal_activity_level") private var goalActivityLevelRawValue: String = ActivityLevel.moderate.rawValue
     @Environment(\.colorScheme) private var colorScheme
     @State private var meal = ""
-    @State private var status = ""
+    @State private var estimateQueue: [EstimateQueueItem] = []
+    @State private var activeEstimateQueueID: EstimateQueueItem.ID? = nil
     @State private var debugJSON: String? = nil
     @State private var logs: [MealLog] = []
     @State private var expandedLogID: UUID? = nil
@@ -86,7 +112,7 @@ struct ContentView: View {
     @State private var updatingLogIDs: Set<UUID> = []
     @State private var editingLogID: UUID? = nil
     @State private var editingMealText: String = ""
-    @State private var isEstimating = false
+    @State private var isEstimatingQueue = false
     @State private var estimateError: String? = nil
     @State private var showEstimateSuccess = false
     @State private var estimateSuccessMessage = "Success! Logged to Health."
@@ -162,7 +188,45 @@ struct ContentView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Enter meals (one per line)")
+                        if !estimateQueue.isEmpty {
+                            Text("Queue")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    ForEach(Array(estimateQueue.enumerated()), id: \.element.id) { index, item in
+                                        HStack(alignment: .center, spacing: 10) {
+                                            if activeEstimateQueueID == item.id {
+                                                ProgressView()
+                                                    .controlSize(.small)
+                                            } else {
+                                                Image(systemName: "clock")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+
+                                            Text("\(index + 1). \(item.meal)")
+                                                .font(.footnote)
+                                                .lineLimit(2)
+                                                .multilineTextAlignment(.leading)
+
+                                            Spacer(minLength: 0)
+                                        }
+                                        .padding(10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .fill(Color(.systemBackground).opacity(colorScheme == .dark ? 0.24 : 0.16))
+                                        )
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            }
+                            .frame(maxHeight: 160)
+                        }
+
+                        Text("Enter one meal item")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -182,88 +246,25 @@ struct ContentView: View {
                                 }
                             }
 
-                        if !batchMealItems.isEmpty {
-                            RoundedRectangle(cornerRadius: 1)
-                                .fill(Color.primary.opacity(0.08))
-                                .frame(height: 1)
-
-                            Text("Batch preview: each line logs as a separate item.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            ScrollView {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(batchMealItems.enumerated()), id: \.offset) { index, _ in
-                                        HStack(alignment: .top, spacing: 8) {
-                                            Text("\(index + 1).")
-                                                .font(.footnote.weight(.semibold))
-                                                .foregroundStyle(.secondary)
-                                                .frame(width: 20, alignment: .leading)
-                                            TextField(
-                                                "Meal item",
-                                                text: batchMealBinding(at: index),
-                                                axis: .vertical
-                                            )
-                                            .lineLimit(3, reservesSpace: false)
-                                            .textInputAutocapitalization(.sentences)
-
-                                            Button(role: .destructive) {
-                                                removeBatchMeal(at: index)
-                                            } label: {
-                                                Image(systemName: "xmark.circle.fill")
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                        .padding(.vertical, 10)
-
-                                        if index < batchMealItems.count - 1 {
-                                            RoundedRectangle(cornerRadius: 1)
-                                                .fill(Color.primary.opacity(0.08))
-                                                .frame(height: 1)
-                                                .padding(.leading, 28)
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, 10)
-                            }
-                            .frame(maxHeight: 180)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.systemBackground).opacity(colorScheme == .dark ? 0.24 : 0.16))
-                            )
-                        }
-
                         RoundedRectangle(cornerRadius: 1)
                             .fill(Color.primary.opacity(0.08))
                             .frame(height: 1)
 
                         HStack(alignment: .center, spacing: 8) {
-                            if !status.isEmpty {
-                                Text(status)
+                            if isEstimatingQueue {
+                                Text("Logging queue (\(estimateQueue.count) pending)…")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(2)
                             }
                             Spacer()
-                            Button(action: {
-                                Task { await run() }
-                            }) {
-                                if isEstimating {
-                                    HStack(spacing: 6) {
-                                        Text("Batching")
-                                            .font(.subheadline.weight(.semibold))
-                                        ProgressView()
-                                            .controlSize(.small)
-                                    }
-                                } else {
-                                    Text(batchMealItems.count > 1 ? "Batch Estimate (\(batchMealItems.count))" : "Estimate")
-                                        .font(.subheadline.weight(.semibold))
-                                }
+                            Button(action: enqueueMealFromInput) {
+                                Text("Generate")
+                                    .font(.subheadline.weight(.semibold))
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(Color(red: 0.55, green: 0.38, blue: 0.88))
-                            .disabled(isEstimating || batchMealItems.isEmpty)
+                            .disabled(trimmedMealInput.isEmpty)
                         }
                     }
                     .padding(12)
@@ -347,6 +348,49 @@ struct ContentView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+
+                Section("Daily Calorie Goal") {
+                    Stepper(value: $dailyCalorieGoal, in: 1200...5000, step: 25) {
+                        Text("Daily goal: \(Int(dailyCalorieGoal)) kcal")
+                    }
+
+                    Picker("Sex", selection: $goalSexRawValue) {
+                        ForEach(GoalSex.allCases) { sex in
+                            Text(sex.label).tag(sex.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Stepper(value: $goalAge, in: 16...90, step: 1) {
+                        Text("Age: \(goalAge)")
+                    }
+
+                    Stepper(value: $goalHeightCm, in: 130...220, step: 1) {
+                        Text("Height: \(Int(goalHeightCm)) cm")
+                    }
+
+                    Stepper(value: $goalWeightKg, in: 40...200, step: 0.5) {
+                        Text("Weight: \(String(format: "%.1f", goalWeightKg)) kg")
+                    }
+
+                    Picker("Activity", selection: $goalActivityLevelRawValue) {
+                        ForEach(ActivityLevel.allCases) { level in
+                            Text(level.label).tag(level.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    HStack {
+                        Text("Estimated maintenance")
+                        Spacer()
+                        Text("\(Int(estimatedDailyCalories)) kcal")
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button("Use Estimated Goal") {
+                        dailyCalorieGoal = estimatedDailyCalories
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
             .onAppear {
@@ -359,53 +403,80 @@ struct ContentView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
-    private func run() async {
-        let items = batchMealItems
-        guard !items.isEmpty else { return }
+    @MainActor
+    private func enqueueMealFromInput() {
+        guard !trimmedMealInput.isEmpty else { return }
+        guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            estimateError = "Missing API key."
+            return
+        }
+
+        estimateError = nil
+        estimateQueue.append(EstimateQueueItem(meal: trimmedMealInput))
+        meal = ""
+
+        guard !isEstimatingQueue else { return }
+        Task { await processEstimateQueue() }
+    }
+
+    @MainActor
+    private func processEstimateQueue() async {
+        guard !isEstimatingQueue else { return }
+        guard !estimateQueue.isEmpty else { return }
+
+        isEstimatingQueue = true
+        debugJSON = nil
 
         do {
-            debugJSON = nil
-            estimateError = nil
-            status = "Requesting Health permission…"
-            isEstimating = true
             try await hk.requestAuth()
+        } catch {
+            estimateError = error.localizedDescription
+            isEstimatingQueue = false
+            return
+        }
 
-            let client = OpenAIClient(apiKey: apiKey, model: selectedModelOption.rawValue)
-            var newLogs: [MealLog] = []
-            for (index, item) in items.enumerated() {
-                status = "Estimating \(index + 1) of \(items.count)…"
-                let estimate = try await client.estimateNutrition(mealText: item)
-                status = "Writing \(index + 1) of \(items.count)…"
-                let newLog = MealLog(meal: item, estimate: estimate, date: Date())
+        let client = OpenAIClient(apiKey: apiKey, model: selectedModelOption.rawValue)
+
+        while !estimateQueue.isEmpty {
+            let queuedItem = estimateQueue[0]
+            activeEstimateQueueID = queuedItem.id
+
+            do {
+                let estimate = try await client.estimateNutrition(mealText: queuedItem.meal)
+                let newLog = MealLog(meal: queuedItem.meal, estimate: estimate, date: Date())
                 try await hk.writeAll(estimate, date: newLog.date, entryID: newLog.id)
-                newLogs.append(newLog)
-            }
+                logs.insert(newLog, at: 0)
+                estimateQueue.removeFirst()
+                showEstimateSuccessBanner("Success! Logged 1 item to Health.")
+            } catch {
+                if error is DecodingError {
+                    debugJSON = OpenAIClient.lastExtractedJSON
+                }
+                estimateError = error.localizedDescription
 
-            status = "✅ Logged \(newLogs.count) item(s)!"
-            logs.insert(contentsOf: newLogs.reversed(), at: 0)
-            isEstimating = false
-            meal = ""
-            estimateSuccessMessage = newLogs.count == 1
-                ? "Success! Logged 1 item to Health."
-                : "Success! Logged \(newLogs.count) items to Health."
-            withAnimation(.easeInOut(duration: 0.2)) {
-                showEstimateSuccess = true
-            }
-            Task {
-                try? await Task.sleep(nanoseconds: UInt64(successBannerSeconds * 1_000_000_000))
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showEstimateSuccess = false
-                    }
+                if let failedIndex = estimateQueue.firstIndex(where: { $0.id == queuedItem.id }) {
+                    estimateQueue.remove(at: failedIndex)
                 }
             }
-        } catch {
-            if error is DecodingError {
-                debugJSON = OpenAIClient.lastExtractedJSON
+        }
+
+        activeEstimateQueueID = nil
+        isEstimatingQueue = false
+    }
+
+    @MainActor
+    private func showEstimateSuccessBanner(_ message: String) {
+        estimateSuccessMessage = message
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showEstimateSuccess = true
+        }
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64(successBannerSeconds * 1_000_000_000))
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showEstimateSuccess = false
+                }
             }
-            estimateError = error.localizedDescription
-            status = "❌ \(error.localizedDescription)"
-            isEstimating = false
         }
     }
 
@@ -426,12 +497,16 @@ struct ContentView: View {
         .ignoresSafeArea()
     }
 
+    private var groupedLogsByDay: [Date: [MealLog]] {
+        let calendar = Calendar.current
+        return Dictionary(grouping: logs) { calendar.startOfDay(for: $0.date) }
+    }
+
     private var logSections: [DaySection] {
         let calendar = Calendar.current
-        let grouped = Dictionary(grouping: logs) { calendar.startOfDay(for: $0.date) }
-        let sortedDays = grouped.keys.sorted(by: >)
+        let sortedDays = groupedLogsByDay.keys.sorted(by: >)
         return sortedDays.map { day in
-            let entries = (grouped[day] ?? []).sorted(by: { $0.date > $1.date })
+            let entries = (groupedLogsByDay[day] ?? []).sorted(by: { $0.date > $1.date })
             let totals = entries.reduce(NutritionEstimate()) { $0 + $1.estimate }
             let title: String
             if calendar.isDateInToday(day) {
@@ -452,11 +527,66 @@ struct ContentView: View {
         return formatter
     }
 
+    private var selectedGoalSex: GoalSex {
+        GoalSex(rawValue: goalSexRawValue) ?? .male
+    }
+
+    private var selectedActivityLevel: ActivityLevel {
+        ActivityLevel(rawValue: goalActivityLevelRawValue) ?? .moderate
+    }
+
+    private var estimatedDailyCalories: Double {
+        let baseBMR: Double
+        switch selectedGoalSex {
+        case .male:
+            baseBMR = 10 * goalWeightKg + 6.25 * goalHeightCm - 5 * Double(goalAge) + 5
+        case .female:
+            baseBMR = 10 * goalWeightKg + 6.25 * goalHeightCm - 5 * Double(goalAge) - 161
+        }
+        let maintenance = baseBMR * selectedActivityLevel.multiplier
+        return max(1200, Self.roundToNearest(maintenance, step: 25))
+    }
+
+    private var weeklySummary: WeeklySummary {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        guard let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: startOfToday)?.start else {
+            return .empty
+        }
+
+        let dayFormatter = DateFormatter()
+        dayFormatter.setLocalizedDateFormatFromTemplate("EEEEE")
+
+        var days: [WeekDayTotal] = []
+        for dayOffset in 0..<7 {
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: startOfWeek) else { continue }
+            let dayStart = calendar.startOfDay(for: date)
+            let dayEntries = groupedLogsByDay[dayStart] ?? []
+            let totals = dayEntries.reduce(NutritionEstimate()) { $0 + $1.estimate }
+            let dayCalories = max(0, totals.dietary_energy_kcal)
+            days.append(
+                WeekDayTotal(
+                    id: dayStart,
+                    label: dayFormatter.string(from: dayStart),
+                    calories: dayCalories,
+                    proteinCalories: max(0, totals.protein_g * 4),
+                    carbsCalories: max(0, totals.carbs_g * 4),
+                    fatCalories: max(0, totals.fat_total_g * 9),
+                    goal: dailyCalorieGoal
+                )
+            )
+        }
+
+        let totalCalories = days.reduce(0) { $0 + $1.calories }
+        return WeeklySummary(days: days, totalCalories: totalCalories)
+    }
+
     private var logView: some View {
         ZStack {
             themeBackground
             LogsTableView(
                 sections: logSections,
+                weeklySummary: weeklySummary,
                 expandedID: $expandedLogID,
                 editingID: $editingLogID,
                 draftMeal: $editingMealText,
@@ -597,31 +727,8 @@ struct ContentView: View {
         OpenAIModelOption(rawValue: selectedOpenAIModel) ?? .defaultOption
     }
 
-    private var batchMealItems: [String] {
-        Self.splitMealItems(from: meal)
-    }
-
-    private func batchMealBinding(at index: Int) -> Binding<String> {
-        Binding(
-            get: {
-                let items = Self.splitMealItems(from: meal)
-                guard items.indices.contains(index) else { return "" }
-                return items[index]
-            },
-            set: { newValue in
-                var items = Self.splitMealItems(from: meal)
-                guard items.indices.contains(index) else { return }
-                items[index] = newValue
-                meal = Self.joinMealItems(items)
-            }
-        )
-    }
-
-    private func removeBatchMeal(at index: Int) {
-        var items = Self.splitMealItems(from: meal)
-        guard items.indices.contains(index) else { return }
-        items.remove(at: index)
-        meal = Self.joinMealItems(items)
+    private var trimmedMealInput: String {
+        meal.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -985,7 +1092,7 @@ struct DayTotalsHeaderView: View {
                 .fill(.ultraThinMaterial)
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.systemBackground).opacity(colorScheme == .dark ? 0.18 : 0.12))
+                        .fill(Color(.systemBackground).opacity(colorScheme == .dark ? 0.2 : 0.1))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -1003,7 +1110,135 @@ struct DayTotalsHeaderView: View {
                 )
         )
         .padding(.horizontal, 6)
-        .padding(.vertical, 6)
+        .padding(.bottom, 6)
+    }
+}
+
+struct WeeklyTotalsCardView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let summary: WeeklySummary
+
+    private var maxScaleValue: Double {
+        let maxDayCalories = summary.days.map { $0.calories }.max() ?? 0
+        let maxGoal = summary.days.map { $0.goal }.max() ?? 0
+        return max(max(maxDayCalories, maxGoal) * 1.1, 1)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Week Total")
+                    .font(.headline)
+                Spacer()
+                Text("\(Int(summary.totalCalories)) kcal")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(alignment: .bottom, spacing: 10) {
+                ForEach(summary.days) { day in
+                    WeekDayBarView(day: day, maxScaleValue: maxScaleValue)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text("Goal line marks each day target.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.systemBackground).opacity(colorScheme == .dark ? 0.2 : 0.1))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.62, green: 0.79, blue: 0.96),
+                                    Color(red: 0.46, green: 0.65, blue: 0.90)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .padding(.horizontal, 6)
+        .padding(.bottom, 12)
+    }
+}
+
+private struct WeekDayBarView: View {
+    let day: WeekDayTotal
+    let maxScaleValue: Double
+
+    private var safeMax: Double {
+        max(maxScaleValue, 1)
+    }
+
+    private var caloriesClamped: Double {
+        min(max(day.calories, 0), safeMax)
+    }
+
+    private var goalClamped: Double {
+        min(max(day.goal, 0), safeMax)
+    }
+
+    private var barSegments: [(Color, Double)] {
+        let macroTotal = max(day.proteinCalories + day.carbsCalories + day.fatCalories, 1)
+        return [
+            (.pink, day.fatCalories / macroTotal),
+            (.orange, day.carbsCalories / macroTotal),
+            (.blue, day.proteinCalories / macroTotal)
+        ]
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            GeometryReader { geo in
+                let height = geo.size.height
+                let caloriesHeight = height * CGFloat(caloriesClamped / safeMax)
+                let goalY = height * CGFloat(1 - (goalClamped / safeMax))
+
+                ZStack(alignment: .top) {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(0.08))
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(barSegments.enumerated()), id: \.offset) { _, segment in
+                            Rectangle()
+                                .fill(segment.0.opacity(0.92))
+                                .frame(height: caloriesHeight * CGFloat(segment.1))
+                        }
+                    }
+                    .frame(width: geo.size.width * 0.78, height: caloriesHeight, alignment: .top)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .offset(y: height - caloriesHeight)
+
+                    RoundedRectangle(cornerRadius: 1, style: .continuous)
+                        .fill(Color.white.opacity(0.95))
+                        .frame(width: geo.size.width * 0.9, height: 2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 1, style: .continuous)
+                                .stroke(Color.black.opacity(0.14), lineWidth: 0.5)
+                        )
+                        .offset(y: goalY - 1)
+                }
+            }
+            .frame(height: 108)
+
+            Text(day.label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -1247,18 +1482,9 @@ struct MealLog: Identifiable, Codable, Equatable {
 }
 
 private extension ContentView {
-    static func splitMealItems(from text: String) -> [String] {
-        text
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-    }
-
-    static func joinMealItems(_ items: [String]) -> String {
-        items
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: "\n")
+    static func roundToNearest(_ value: Double, step: Double) -> Double {
+        guard step > 0 else { return value }
+        return (value / step).rounded() * step
     }
 
     static func encodeLogs(_ logs: [MealLog]) -> String {
