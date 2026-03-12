@@ -1031,18 +1031,18 @@ struct CaloriePillView: View {
 
                 VStack(spacing: 1) {
                     Text(String(format: "%.0f", calories))
-                        .font(.caption2.weight(.semibold))
+                        .font(.caption.weight(.semibold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.65)
                     Text("kcal")
-                        .font(.system(size: 8, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                 }
                 .foregroundStyle(Color.green)
                 .frame(width: badgeSize, height: badgeSize)
                 .offset(x: cell + spacing, y: 0)
             }
         }
-        .frame(width: 42, height: 42)
+        .frame(width: 56, height: 56)
     }
 }
 
@@ -1332,13 +1332,14 @@ struct MacroBarView: View {
     let protein: Double
     let carbs: Double
     let fat: Double
+    var showsValues: Bool = true
 
     private var total: Double {
         max(protein + carbs + fat, 1)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: showsValues ? 6 : 0) {
             GeometryReader { geo in
                 let width = geo.size.width
                 let proteinWidth = width * CGFloat(protein / total)
@@ -1363,16 +1364,18 @@ struct MacroBarView: View {
             }
             .frame(height: 10)
 
-            HStack(spacing: 8) {
-                Text(String(format: "%.0f", protein))
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.blue)
-                Text(String(format: "%.0f", carbs))
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.orange)
-                Text(String(format: "%.0f", fat))
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.pink)
+            if showsValues {
+                HStack(spacing: 8) {
+                    Text(String(format: "%.0f", protein))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.blue)
+                    Text(String(format: "%.0f", carbs))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    Text(String(format: "%.0f", fat))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.pink)
+                }
             }
         }
     }

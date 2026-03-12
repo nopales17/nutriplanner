@@ -826,75 +826,60 @@ private struct LogRowCardView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
 
         VStack(spacing: 0) {
+            editableHeader
+
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .center, spacing: 10) {
                     CaloriePillView(calories: log.estimate.dietary_energy_kcal)
-                    Text(log.meal)
-                        .font(.headline)
-                        .lineLimit(2)
-                    Spacer()
-                    Button(action: onEdit) {
-                        Label("Edit", systemImage: "pencil")
-                            .labelStyle(.iconOnly)
-                            .font(.subheadline)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isHeightAnimating)
-                }
-                Text(log.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
 
-                MacroBarView(
-                    protein: log.estimate.protein_g,
-                    carbs: log.estimate.carbs_g,
-                    fat: log.estimate.fat_total_g
-                )
-
-                HStack {
-                    Spacer()
-                    Button(action: onToggleExpanded) {
-                        HStack(spacing: 6) {
-                            Text(isExpanded ? "Collapse" : "Expand")
-                                .font(.caption.weight(.semibold))
-                            Image(systemName: "chevron.down")
-                                .font(.caption.weight(.semibold))
-                                .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isHeightAnimating)
-                }
-
-                if isEditing {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Edit meal")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(log.date.formatted(date: .abbreviated, time: .shortened))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        HStack(spacing: 8) {
-                            TextField("Meal description", text: Binding(
-                                get: { draftMeal },
-                                set: { onDraftChange($0) }
-                            ), axis: .vertical)
-                            .textInputAutocapitalization(.sentences)
-                            .lineLimit(2, reservesSpace: true)
-                            Button(action: onUpdate) {
-                                Text("Update")
-                                    .font(.subheadline.weight(.semibold))
+
+                        MacroBarView(
+                            protein: log.estimate.protein_g,
+                            carbs: log.estimate.carbs_g,
+                            fat: log.estimate.fat_total_g,
+                            showsValues: false
+                        )
+
+                        HStack(alignment: .center, spacing: 8) {
+                            HStack(spacing: 3) {
+                                Text(String(format: "%.0f", log.estimate.protein_g))
+                                    .foregroundStyle(.blue)
+                                Text("P")
+                                    .foregroundStyle(.blue)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(draftMeal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            HStack(spacing: 3) {
+                                Text(String(format: "%.0f", log.estimate.carbs_g))
+                                    .foregroundStyle(.orange)
+                                Text("C")
+                                    .foregroundStyle(.orange)
+                            }
+                            HStack(spacing: 3) {
+                                Text(String(format: "%.0f", log.estimate.fat_total_g))
+                                    .foregroundStyle(.pink)
+                                Text("F")
+                                    .foregroundStyle(.pink)
+                            }
+                            Spacer()
+                            Button(action: onToggleExpanded) {
+                                Image(systemName: "chevron.down")
+                                    .font(.caption.weight(.semibold))
+                                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isHeightAnimating)
                         }
-                        Button("Close", action: onCancelEdit)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        .font(.caption.weight(.semibold))
                     }
-                    .padding(10)
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
-            .padding(12)
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
 
             microContent
                 .opacity(isExpanded ? 1 : 0)
@@ -913,6 +898,108 @@ private struct LogRowCardView: View {
                 $0.disablesAnimations = true
             }
         }
+    }
+
+    private var editableHeader: some View {
+        ZStack(alignment: .topLeading) {
+            if isEditing {
+                expandedHeaderContent
+            } else {
+                collapsedHeaderContent
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(isEditing ? Color(.systemBackground).opacity(colorScheme == .dark ? 0.12 : 0.08) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.69, green: 0.54, blue: 0.95),
+                                    Color(red: 0.84, green: 0.70, blue: 0.98)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                        .opacity(isEditing ? 1 : 0)
+                )
+        )
+        .animation(.easeInOut(duration: 0.24), value: isEditing)
+    }
+
+    private var collapsedHeaderContent: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(log.meal)
+                .font(.headline)
+                .lineLimit(2)
+                .layoutPriority(1)
+            Spacer(minLength: 8)
+            editPencilButton
+        }
+    }
+
+    private var expandedHeaderContent: some View {
+        HStack(alignment: .top, spacing: 8) {
+            TextField(
+                "Meal description",
+                text: Binding(
+                    get: { draftMeal },
+                    set: { onDraftChange($0) }
+                ),
+                axis: .vertical
+            )
+            .font(.headline)
+            .textInputAutocapitalization(.sentences)
+            .lineLimit(2, reservesSpace: true)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        #if canImport(UIKit)
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil,
+                            from: nil,
+                            for: nil
+                        )
+                        #endif
+                    }
+                }
+            }
+
+            VStack(alignment: .trailing, spacing: 6) {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 6, height: 6)
+                    Text("Editing")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                editPencilButton
+                Button(action: onUpdate) {
+                    Text("Update")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(draftMeal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+
+    private var editPencilButton: some View {
+        Button(action: onEdit) {
+            Label("Edit", systemImage: "pencil")
+                .labelStyle(.iconOnly)
+                .font(.subheadline)
+        }
+        .buttonStyle(.bordered)
+        .disabled(isHeightAnimating)
     }
 
     private func cardBackground(corners: UIRectCorner) -> some View {
