@@ -783,6 +783,11 @@ struct LogRowHostedView: View {
     @ObservedObject var idBox: RowIDBox
     @EnvironmentObject var tableState: TableState
     @State private var probeCardFrame: CGRect = .zero
+    @State private var probeRowContainerFrame: CGRect = .zero
+    @State private var probeCardBorderFrame: CGRect = .zero
+    @State private var probeDetailRegionFrame: CGRect = .zero
+    @State private var probeEditRegionFrame: CGRect = .zero
+    @State private var probeBelowBoundaryChildFrame: CGRect = .zero
     @State private var probeDetailVisibleHeight: CGFloat = 0
     @State private var probeSample: Int = 0
     @State private var probeLastSignature: String = ""
@@ -790,6 +795,8 @@ struct LogRowHostedView: View {
     @State private var probeDetailRenderLastSignature: String = ""
     @State private var probeDetailOpacitySample: Int = 0
     @State private var probeDetailOpacityLastSignature: String = ""
+    @State private var probeGeometryScopeSample: Int = 0
+    @State private var probeGeometryScopeLastSignature: String = ""
     @State private var probeRowToken: String = UUID().uuidString
 
     private var log: MealLog? {
@@ -828,10 +835,64 @@ struct LogRowHostedView: View {
                         isEditing: isEditing,
                         isHeightAnimating: isHeightAnimating
                     )
+                    traceGeometryScopeSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onCardBorderFrameChange: { frame in
+                    probeCardBorderFrame = frame
+                    traceGeometryScopeSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onDetailRegionFrameChange: { frame in
+                    probeDetailRegionFrame = frame
+                    traceGeometryScopeSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onEditRegionFrameChange: { frame in
+                    probeEditRegionFrame = frame
+                    traceGeometryScopeSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onBelowBoundaryChildFrameChange: { frame in
+                    probeBelowBoundaryChildFrame = frame
+                    traceGeometryScopeSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
                 },
                 onDetailHeightChange: { height in
                     probeDetailVisibleHeight = height
                     traceCollapseBorderSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                    traceGeometryScopeSample(
                         logID: log.id,
                         renderIdentity: renderIdentity,
                         isExpanded: isExpanded,
@@ -868,6 +929,31 @@ struct LogRowHostedView: View {
                     )
                 }
             )
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear {
+                            probeRowContainerFrame = proxy.frame(in: .global)
+                            traceGeometryScopeSample(
+                                logID: log.id,
+                                renderIdentity: renderIdentity,
+                                isExpanded: isExpanded,
+                                isEditing: isEditing,
+                                isHeightAnimating: isHeightAnimating
+                            )
+                        }
+                        .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                            probeRowContainerFrame = newFrame
+                            traceGeometryScopeSample(
+                                logID: log.id,
+                                renderIdentity: renderIdentity,
+                                isExpanded: isExpanded,
+                                isEditing: isEditing,
+                                isHeightAnimating: isHeightAnimating
+                            )
+                        }
+                }
+            )
             .onAppear {
                 traceHostedRow("swiftui.row.appear", renderIdentity)
             }
@@ -882,6 +968,12 @@ struct LogRowHostedView: View {
             }
             .onChange(of: isHeightAnimating) { _, newValue in
                 traceHostedRow("swiftui.row.animatingChanged", "\(renderIdentity) newAnimating=\(newValue)")
+                if newValue {
+                    probeGeometryScopeSample = 0
+                    probeGeometryScopeLastSignature = ""
+                } else {
+                    probeGeometryScopeLastSignature = ""
+                }
             }
             .onChange(of: tableState.collapseProbeSession) { _, _ in
                 probeSample = 0
@@ -890,6 +982,8 @@ struct LogRowHostedView: View {
                 probeDetailRenderLastSignature = ""
                 probeDetailOpacitySample = 0
                 probeDetailOpacityLastSignature = ""
+                probeGeometryScopeSample = 0
+                probeGeometryScopeLastSignature = ""
             }
             .onChange(of: tableState.collapseProbeActive) { _, isActive in
                 if !isActive {
@@ -999,6 +1093,46 @@ struct LogRowHostedView: View {
         traceHostedRow(
             "swiftui.row.detailOpacityProbe.sample",
             "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeDetailOpacitySample) rowToken=\(probeRowToken) interpolatedOpacity=\(interpolated) targetOpacity=\(target) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) targetID=\(logID.uuidString)"
+        )
+    }
+
+    private func traceGeometryScopeSample(
+        logID: UUID,
+        renderIdentity: String,
+        isExpanded: Bool,
+        isEditing: Bool,
+        isHeightAnimating: Bool
+    ) {
+        guard isHeightAnimating else { return }
+        let rowMinY = formatted(probeRowContainerFrame.minY)
+        let rowMaxY = formatted(probeRowContainerFrame.maxY)
+        let rowHeight = formatted(probeRowContainerFrame.height)
+        let cardOuterMinY = formatted(probeCardFrame.minY)
+        let cardOuterMaxY = formatted(probeCardFrame.maxY)
+        let cardOuterHeight = formatted(probeCardFrame.height)
+        let cardBorderMinY = formatted(probeCardBorderFrame.minY)
+        let cardBorderMaxY = formatted(probeCardBorderFrame.maxY)
+        let cardBorderHeight = formatted(probeCardBorderFrame.height)
+        let detailRegionMinY = formatted(probeDetailRegionFrame.minY)
+        let detailRegionMaxY = formatted(probeDetailRegionFrame.maxY)
+        let detailRegionHeight = formatted(probeDetailRegionFrame.height)
+        let editRegionMinY = formatted(probeEditRegionFrame.minY)
+        let editRegionMaxY = formatted(probeEditRegionFrame.maxY)
+        let editRegionHeight = formatted(probeEditRegionFrame.height)
+        let belowChildMinY = formatted(probeBelowBoundaryChildFrame.minY)
+        let belowChildMaxY = formatted(probeBelowBoundaryChildFrame.maxY)
+        let belowChildHeight = formatted(probeBelowBoundaryChildFrame.height)
+        let belowDelta = formatted(probeBelowBoundaryChildFrame.minY - probeDetailRegionFrame.minY)
+        let detailVisibleHeight = formatted(probeDetailVisibleHeight)
+
+        let signature = "\(rowMinY)|\(rowMaxY)|\(rowHeight)|\(cardOuterMinY)|\(cardOuterMaxY)|\(cardOuterHeight)|\(cardBorderMinY)|\(cardBorderMaxY)|\(cardBorderHeight)|\(detailRegionMinY)|\(detailRegionMaxY)|\(detailRegionHeight)|\(editRegionMinY)|\(editRegionMaxY)|\(editRegionHeight)|\(belowChildMinY)|\(belowChildMaxY)|\(belowChildHeight)|\(belowDelta)|\(detailVisibleHeight)|\(isExpanded)|\(isEditing)|\(tableState.layoutPassID)"
+        guard signature != probeGeometryScopeLastSignature else { return }
+        probeGeometryScopeLastSignature = signature
+        probeGeometryScopeSample += 1
+
+        traceHostedRow(
+            "swiftui.row.geometryScopeProbe.sample",
+            "\(renderIdentity) probeSample=\(probeGeometryScopeSample) rowToken=\(probeRowToken) rowMinY=\(rowMinY) rowMaxY=\(rowMaxY) rowHeight=\(rowHeight) cardOuterMinY=\(cardOuterMinY) cardOuterMaxY=\(cardOuterMaxY) cardOuterHeight=\(cardOuterHeight) cardBorderMinY=\(cardBorderMinY) cardBorderMaxY=\(cardBorderMaxY) cardBorderHeight=\(cardBorderHeight) detailRegionMinY=\(detailRegionMinY) detailRegionMaxY=\(detailRegionMaxY) detailRegionHeight=\(detailRegionHeight) editRegionMinY=\(editRegionMinY) editRegionMaxY=\(editRegionMaxY) editRegionHeight=\(editRegionHeight) belowBoundaryChildMinY=\(belowChildMinY) belowBoundaryChildMaxY=\(belowChildMaxY) belowBoundaryChildHeight=\(belowChildHeight) belowBoundaryDeltaY=\(belowDelta) detailVisibleHeight=\(detailVisibleHeight) targetID=\(logID.uuidString)"
         )
     }
 
@@ -1142,6 +1276,10 @@ private struct LogRowCardView: View {
     let onCancelEdit: () -> Void
     let onUpdate: () -> Void
     let onCardFrameChange: (CGRect) -> Void
+    let onCardBorderFrameChange: (CGRect) -> Void
+    let onDetailRegionFrameChange: (CGRect) -> Void
+    let onEditRegionFrameChange: (CGRect) -> Void
+    let onBelowBoundaryChildFrameChange: (CGRect) -> Void
     let onDetailHeightChange: (CGFloat) -> Void
     let onDetailRevealAnimatableSample: (CGFloat, CGFloat, CGFloat?, CGFloat, CGFloat) -> Void
     let onDetailOpacityAnimatableSample: (CGFloat, CGFloat, CGFloat?, CGFloat, CGFloat) -> Void
@@ -1164,12 +1302,34 @@ private struct LogRowCardView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             MicronutrientGrid(items: log.micronutrientItems)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                onBelowBoundaryChildFrameChange(proxy.frame(in: .global))
+                            }
+                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                                onBelowBoundaryChildFrameChange(newFrame)
+                            }
+                    }
+                )
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .topLeading)
 
         VStack(spacing: 0) {
             editableHeader
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                onEditRegionFrameChange(proxy.frame(in: .global))
+                            }
+                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                                onEditRegionFrameChange(newFrame)
+                            }
+                    }
+                )
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 10) {
@@ -1242,6 +1402,17 @@ private struct LogRowCardView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
+                                onDetailRegionFrameChange(proxy.frame(in: .global))
+                            }
+                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                                onDetailRegionFrameChange(newFrame)
+                            }
+                    }
+                )
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
                                 detailIntrinsicHeight = proxy.size.height
                             }
                             .onChange(of: proxy.size.height) { _, newHeight in
@@ -1297,6 +1468,17 @@ private struct LogRowCardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(cardBackground(corners: .allCorners))
+        .overlay(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear {
+                        onCardBorderFrameChange(proxy.frame(in: .global))
+                    }
+                    .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                        onCardBorderFrameChange(newFrame)
+                    }
+            }
+        )
         .background(
             GeometryReader { proxy in
                 Color.clear
