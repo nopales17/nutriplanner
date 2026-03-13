@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "verdict_modes": {
+    "motif_match": {
+      "next_action": "Narrow directly to tentative-to-committed state promotion in the implicated subsystem.",
+      "avoid": "Avoid broad multi-subsystem exploration before validating the promotion path.",
+      "search_scope": "State channel transition points and the policy/rule reader that consumes committed state."
+    },
+    "motif_non_match": {
+      "next_action": "Deprioritize this motif and investigate the next likely bug class from incident evidence.",
+      "avoid": "Avoid editing promotion/commit logic as the first step.",
+      "search_scope": "Rule/lookup/mapping/normalization/config paths directly evidenced by the incident."
+    },
+    "ambiguous": {
+      "next_action": "Request exactly one discriminating incident evidence check before broader code search.",
+      "avoid": "Avoid forcing motif match/non-match without the discriminating check.",
+      "search_scope": "Single narrow instrumentation/check at the decision point that can resolve ambiguity."
+    }
+  }
+}

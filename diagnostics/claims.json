@@ -1,0 +1,204 @@
+{
+  "claims": [
+    {
+      "id": "diag-mainactor-incident-writer",
+      "status": "supported",
+      "subsystem": "diagnostics-export",
+      "statement": "Incident export must run on MainActor because BreadcrumbStore is MainActor-isolated.",
+      "files": [
+        "RepoTrace/Diagnostics/BreadcrumbStore.swift",
+        "RepoTrace/Diagnostics/IncidentWriter.swift"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "demo-target-repotracedemo",
+      "status": "supported",
+      "subsystem": "demo-app-target",
+      "statement": "Runnable iOS demo target is scheme RepoTraceDemo in RepoTraceDemo.xcodeproj, sourcing ios/RepoTraceDemo and RepoTrace/Diagnostics.",
+      "files": [
+        "RepoTraceDemo.xcodeproj/project.pbxproj",
+        "ios/RepoTraceDemo/RepoTraceDemoApp.swift",
+        "ios/RepoTraceDemo/DemoRootView.swift",
+        "project.yml"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "debug-entrypoint-visibility",
+      "status": "supported",
+      "subsystem": "diagnostics-ui",
+      "statement": "Attach the debug report modifier to visible content inside NavigationStack, and use a text toolbar button to ensure a visible DEBUG-only entrypoint.",
+      "files": [
+        "ios/RepoTraceDemo/DemoRootView.swift",
+        "RepoTrace/Diagnostics/DebugReportEntryPoint.swift"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "export-sheet-driven-by-item",
+      "status": "supported",
+      "subsystem": "diagnostics-export",
+      "statement": "Present export share sheet from an identifiable exported file item, not a boolean with optional sheet content, to avoid empty/blank exporter presentation.",
+      "files": [
+        "RepoTrace/Diagnostics/DebugReportView.swift"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "metadata-unknown-when-version-keys-missing",
+      "status": "supported",
+      "subsystem": "diagnostics-metadata",
+      "statement": "Incident metadata appVersion/buildNumber become \"unknown\" when bundle version keys are not defined, because IncidentWriter explicitly falls back to \"unknown\".",
+      "files": [
+        "RepoTrace/Diagnostics/IncidentWriter.swift",
+        "project.yml"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "xcodegen-version-keys-drive-incident-metadata",
+      "status": "supported",
+      "subsystem": "diagnostics-metadata",
+      "statement": "In the demo target, setting MARKETING_VERSION/CURRENT_PROJECT_VERSION and mapping them to CFBundleShortVersionString/CFBundleVersion in project.yml makes IncidentWriter export real appVersion/buildNumber.",
+      "files": [
+        "project.yml",
+        "RepoTrace/Diagnostics/IncidentWriter.swift"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "incident-ingest-defaults-to-newest-inbox-json",
+      "status": "supported",
+      "subsystem": "diagnostics-ingest",
+      "statement": "new_incident.py can ingest an explicit JSON path, or with no args it ingests the newest diagnostics/inbox/*.json file.",
+      "files": [
+        "scripts/new_incident.py",
+        "diagnostics/inbox/.gitkeep"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "demo-fake-bug-reset-counter",
+      "status": "falsified",
+      "subsystem": "demo-bug-harness",
+      "statement": "Superseded: demo bug scenario no longer uses reset-counter mismatch.",
+      "files": [
+        "ios/RepoTraceDemo/DemoRootView.swift"
+      ],
+      "checked_at": "2026-03-10",
+      "retrieval_priority": "deprioritized"
+    },
+    {
+      "id": "report-form-expected-actual-default-empty",
+      "status": "supported",
+      "subsystem": "diagnostics-ui",
+      "statement": "DebugReportView initializes expectedBehavior and actualBehavior as empty strings, so incidents keep those fields empty when the reporter does not fill them manually.",
+      "files": [
+        "RepoTrace/Diagnostics/DebugReportView.swift"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "fake-bug-stages-report-prefill",
+      "status": "falsified",
+      "subsystem": "diagnostics-ui",
+      "statement": "Superseded: report prefill is no longer staged by the reset-counter flow.",
+      "files": [
+        "ios/RepoTraceDemo/DemoRootView.swift",
+        "RepoTrace/Diagnostics/DebugReportDraftStore.swift",
+        "RepoTrace/Diagnostics/DebugReportView.swift"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "simulator-helper-copies-newest-unprocessed-incident",
+      "status": "supported",
+      "subsystem": "diagnostics-ingest",
+      "statement": "pull_simulator_incident.py finds the booted simulator app data container and copies the newest unprocessed Documents/Incidents JSON into diagnostics/inbox.",
+      "files": [
+        "scripts/pull_simulator_incident.py",
+        "diagnostics/inbox/.gitkeep"
+      ],
+      "checked_at": "2026-03-10"
+    },
+    {
+      "id": "demo-coupon-discount-integer-division-bug",
+      "status": "falsified",
+      "subsystem": "demo-bug-harness",
+      "statement": "Superseded: demo bug no longer uses integer-division pricing math.",
+      "files": [
+        "ios/RepoTraceDemo/CheckoutPricing.swift",
+        "ios/RepoTraceDemo/DemoRootView.swift"
+      ],
+      "checked_at": "2026-03-10",
+      "retrieval_priority": "deprioritized"
+    },
+    {
+      "id": "demo-stale-policy-context-bug",
+      "status": "falsified",
+      "subsystem": "demo-bug-harness",
+      "statement": "Superseded: demo bug no longer uses stale cached context in policy repository.",
+      "files": [
+        "ios/RepoTraceDemo/CheckoutPricing.swift",
+        "ios/RepoTraceDemo/DemoRootView.swift"
+      ],
+      "checked_at": "2026-03-11",
+      "retrieval_priority": "deprioritized"
+    },
+    {
+      "id": "demo-pending-vs-applied-coupon-divergence-bug",
+      "status": "falsified",
+      "subsystem": "demo-bug-harness",
+      "statement": "Superseded: demo bug no longer uses coupon-total divergence as the active motif example.",
+      "files": [
+        "ios/RepoTraceDemo/CheckoutPricing.swift",
+        "ios/RepoTraceDemo/DemoRootView.swift"
+      ],
+      "checked_at": "2026-03-11",
+      "motif_id": "motif-source-of-truth-state-promotion-divergence",
+      "retrieval_priority": "example"
+    },
+    {
+      "id": "demo-pending-vs-applied-delivery-promise-divergence-bug",
+      "status": "falsified",
+      "subsystem": "demo-bug-harness",
+      "statement": "Superseded: demo bug no longer uses delivery-promise divergence as the active motif surface.",
+      "files": [
+        "ios/RepoTraceDemo/CheckoutPricing.swift",
+        "ios/RepoTraceDemo/DemoRootView.swift"
+      ],
+      "checked_at": "2026-03-12",
+      "motif_id": "motif-source-of-truth-state-promotion-divergence",
+      "retrieval_priority": "example"
+    },
+    {
+      "id": "demo-source-of-truth-state-promotion-motif",
+      "status": "supported",
+      "subsystem": "demo-bug-harness",
+      "statement": "Motif: presentation can reflect a tentative state channel while execution consumes a committed state channel; when the promotion/commit step is skipped, the UI appears updated but computed outcomes remain unchanged.",
+      "files": [
+        "ios/RepoTraceDemo/CheckoutPricing.swift",
+        "ios/RepoTraceDemo/DemoRootView.swift"
+      ],
+      "checked_at": "2026-03-12",
+      "motif_id": "motif-source-of-truth-state-promotion-divergence",
+      "retrieval_priority": "example"
+    },
+    {
+      "id": "motif-source-of-truth-state-promotion-divergence",
+      "status": "supported",
+      "subsystem": "demo-bug-harness",
+      "statement": "Canonical motif: UI/presentation state updates a tentative selection channel while execution/policy/rule evaluation reads a committed runtime channel; if promotion is skipped, the UI appears updated but computed outcomes remain unchanged.",
+      "files": [
+        "ios/RepoTraceDemo/DemoRootView.swift",
+        "ios/RepoTraceDemo/CheckoutPricing.swift",
+        "ios/RepoTraceDemo/PlaylistQueueing.swift"
+      ],
+      "checked_at": "2026-03-12",
+      "retrieval_priority": "primary"
+    }
+  ],
+  "last_updated": "2026-03-12",
+  "schema_version": 1
+}
