@@ -1,0 +1,26 @@
+{
+  "incident_id": "incident-20260313-074648",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Collapse-tail detail probes (samples 17-25) show `rawAnimatableOpacity` decaying from 0.232 to 0.009 while `renderedOpacity` stays 0.000, `detailFrameHeightParam` stays 0.000, and `detailVisibleHeight` stays 0.000.",
+          "In the same collapse-tail window, `visibilityGateOpen=false` for every sample, so rendered presence remains owned by a closed gate path while an animatable scalar is still changing."
+        ],
+        "contradicting_evidence": [
+          "This incident does not include expand transition samples or collapse-start samples (`probe.expand.start/end` and `probe.collapse.start` absent), so intermediate height/opacity values earlier in the transition cannot be confirmed or ruled out from this artifact alone."
+        ],
+        "missing_evidence": [
+          "One full expand trace and one full collapse trace, each including transition start through end, with contiguous `detailOpacityProbe`/height samples to verify whether `detailFrameHeightParam` and `detailVisibleHeight` traverse intermediate values under one scalar owner."
+        ],
+        "next_discriminating_check": "Capture a full expand+collapse instrumentation run (start-to-end) for one row and verify that both `detailFrameHeightParam` and `detailVisibleHeight` move through intermediate values in both directions while `renderedOpacity` changes on the same scalar-owned path."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "animated-scalar ownership remains unresolved in observed collapse-tail samples",
+      "first_diverging_owner": "LogRowCardView rendered detail visibility/opacity gate path"
+    }
+  }
+}
