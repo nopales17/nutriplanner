@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import Combine
 
-private struct HostOwnerLayerSnapshot {
+fileprivate struct HostOwnerLayerSnapshot {
     let hostPointer: String
     let hostFrameInTable: CGRect
     let hostClipsToBounds: Bool
@@ -68,6 +68,18 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private var ownerStackProbeSample: Int = 0
     private var ownerStackProbeLastSignature: String = ""
     private let ownerStackProbeMaxSamples: Int = 16
+    private let ownerStackProbeShiftReplayPreSamples: Int = 2
+    private let ownerStackProbeShiftReplayPostSamples: Int = 2
+    private let ownerStackProbeShiftEpsilon: CGFloat = 0.5
+    private var ownerStackProbeBaselineTargetCellMinY: CGFloat?
+    private var ownerStackProbeBaselineTargetContentMinY: CGFloat?
+    private var ownerStackProbeBaselineCellOverlapY: CGFloat?
+    private var ownerStackProbeBaselineStackRelation: String = "unknown"
+    private var ownerStackProbeRecentSampleMessages: [String] = []
+    private var ownerStackProbeShiftWindowMessages: [String] = []
+    private var ownerStackProbeShiftDetected: Bool = false
+    private var ownerStackProbeShiftTriggerField: String = "none"
+    private var ownerStackProbeShiftPostSamplesRemaining: Int = 0
 
     private var onDelete: ((UUID) -> Void)?
     private var onToggleExpanded: ((UUID) -> Void)?
@@ -307,6 +319,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         tableState.ownerStackProbeActive = false
         tableState.ownerStackProbeTargetID = nil
         tableState.ownerStackProbeDirection = "none"
+        resetOwnerStackShiftWindowState()
 
         let expandedChanged = oldExpandedID != payload.expandedID
         let editingChanged = oldEditingID != payload.editingID
@@ -513,6 +526,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             ownerStackProbeSession += 1
             ownerStackProbeSample = 0
             ownerStackProbeLastSignature = ""
+            resetOwnerStackShiftWindowState()
             tableState.ownerStackProbeActive = true
             tableState.ownerStackProbeTargetID = target
             tableState.ownerStackProbeSession = ownerStackProbeSession
@@ -526,6 +540,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             tableState.ownerStackProbeActive = false
             tableState.ownerStackProbeTargetID = nil
             tableState.ownerStackProbeDirection = "none"
+            resetOwnerStackShiftWindowState()
         }
         if collapseProbeIsActive, let target = collapseProbeTargetID {
             beginSiblingProbeIfNeeded(
@@ -610,6 +625,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                     "probe.ownerStack.end",
                     "session=\(self.ownerStackProbeSession) direction=\(self.tableState.ownerStackProbeDirection) target=\(self.formattedID(self.tableState.ownerStackProbeTargetID)) samples=\(self.ownerStackProbeSample) elapsed=\(String(format: "%.6f", ProcessInfo.processInfo.systemUptime - animationStart))"
                 )
+                self.emitOwnerStackShiftReplayIfNeeded()
             }
             self.emitSequenceReplayIfNeeded(for: self.collapseProbeTargetID)
             self.finishSiblingProbe(animationEnd: ProcessInfo.processInfo.systemUptime)
@@ -623,6 +639,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             self.tableState.ownerStackProbeActive = false
             self.tableState.ownerStackProbeTargetID = nil
             self.tableState.ownerStackProbeDirection = "none"
+            self.resetOwnerStackShiftWindowState()
             if !self.pendingAffectedIDs.isEmpty {
                 self.debugLog("queued animation detected, restarting")
                 self.scheduleHeightAnimation(affectedIDs: [])
@@ -652,6 +669,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         tableState.ownerStackProbeActive = false
         tableState.ownerStackProbeTargetID = nil
         tableState.ownerStackProbeDirection = "none"
+        resetOwnerStackShiftWindowState()
         debugLog("finishHeightAnimation")
     }
 
@@ -896,6 +914,75 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         tableState.siblingProbeNextID = nil
     }
 
+    private func resetOwnerStackShiftWindowState() {
+        ownerStackProbeBaselineTargetCellMinY = nil
+        ownerStackProbeBaselineTargetContentMinY = nil
+        ownerStackProbeBaselineCellOverlapY = nil
+        ownerStackProbeBaselineStackRelation = "unknown"
+        ownerStackProbeRecentSampleMessages = []
+        ownerStackProbeShiftWindowMessages = []
+        ownerStackProbeShiftDetected = false
+        ownerStackProbeShiftTriggerField = "none"
+        ownerStackProbeShiftPostSamplesRemaining = 0
+    }
+
+    private func emitOwnerStackShiftReplayIfNeeded() {
+        guard ownerStackProbeShiftDetected else { return }
+        guard !ownerStackProbeShiftWindowMessages.isEmpty else { return }
+        traceAnimation(
+            "probe.ownerStack.shiftCapture",
+            "session=\(ownerStackProbeSession) triggerField=\(ownerStackProbeShiftTriggerField) retainedSamples=\(ownerStackProbeShiftWindowMessages.count) preSamples=\(ownerStackProbeShiftReplayPreSamples) postSamples=\(ownerStackProbeShiftReplayPostSamples)"
+        )
+        for sampleMessage in ownerStackProbeShiftWindowMessages {
+            traceAnimation("probe.ownerStack.sample", "\(sampleMessage) replay=shiftWindow")
+        }
+    }
+
+    private func ownerStackShiftTriggerField(
+        targetCellMinYShiftFromStart: CGFloat,
+        targetContentMinYShiftFromStart: CGFloat,
+        cellOverlapYShiftFromStart: CGFloat,
+        stackRelation: String
+    ) -> String? {
+        if abs(targetCellMinYShiftFromStart) > ownerStackProbeShiftEpsilon {
+            return "targetCellMinYShiftFromStart"
+        }
+        if abs(targetContentMinYShiftFromStart) > ownerStackProbeShiftEpsilon {
+            return "targetContentMinYShiftFromStart"
+        }
+        if abs(cellOverlapYShiftFromStart) > ownerStackProbeShiftEpsilon {
+            return "cellOverlapYShiftFromStart"
+        }
+        if stackRelation != ownerStackProbeBaselineStackRelation {
+            return "stackRelationChange"
+        }
+        return nil
+    }
+
+    private func captureOwnerStackShiftWindowIfNeeded(sampleMessage: String, shiftTriggerField: String?) {
+        ownerStackProbeRecentSampleMessages.append(sampleMessage)
+        if ownerStackProbeRecentSampleMessages.count > ownerStackProbeShiftReplayPreSamples + 1 {
+            ownerStackProbeRecentSampleMessages.removeFirst(
+                ownerStackProbeRecentSampleMessages.count - (ownerStackProbeShiftReplayPreSamples + 1)
+            )
+        }
+
+        if !ownerStackProbeShiftDetected, let shiftTriggerField {
+            ownerStackProbeShiftDetected = true
+            ownerStackProbeShiftTriggerField = shiftTriggerField
+            ownerStackProbeShiftWindowMessages = ownerStackProbeRecentSampleMessages
+            ownerStackProbeShiftPostSamplesRemaining = ownerStackProbeShiftReplayPostSamples
+            return
+        }
+
+        guard ownerStackProbeShiftDetected else { return }
+        guard ownerStackProbeShiftPostSamplesRemaining > 0 else { return }
+        if ownerStackProbeShiftWindowMessages.last != sampleMessage {
+            ownerStackProbeShiftWindowMessages.append(sampleMessage)
+        }
+        ownerStackProbeShiftPostSamplesRemaining -= 1
+    }
+
     private func sampleOwnerStackIfNeeded(trigger: String) {
         guard tableState.ownerStackProbeActive else { return }
         guard let targetID = tableState.ownerStackProbeTargetID else { return }
@@ -946,6 +1033,18 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                 nextSiblingIndex: $0.siblingIndex
             )
         } ?? "unknown"
+        if ownerStackProbeBaselineTargetCellMinY == nil {
+            ownerStackProbeBaselineTargetCellMinY = targetCellFrameInTable.minY
+            ownerStackProbeBaselineTargetContentMinY = targetContentFrameInTable.minY
+            ownerStackProbeBaselineCellOverlapY = cellOverlap
+            ownerStackProbeBaselineStackRelation = stackRelation
+        }
+        let baselineTargetCellMinY = ownerStackProbeBaselineTargetCellMinY ?? targetCellFrameInTable.minY
+        let baselineTargetContentMinY = ownerStackProbeBaselineTargetContentMinY ?? targetContentFrameInTable.minY
+        let baselineCellOverlap = ownerStackProbeBaselineCellOverlapY ?? cellOverlap
+        let targetCellMinYShiftFromStart = targetCellFrameInTable.minY - baselineTargetCellMinY
+        let targetContentMinYShiftFromStart = targetContentFrameInTable.minY - baselineTargetContentMinY
+        let cellOverlapYShiftFromStart = cellOverlap - baselineCellOverlap
 
         let signature = [
             formatted(targetRowRect.minY),
@@ -974,10 +1073,17 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         ownerStackProbeLastSignature = signature
         ownerStackProbeSample += 1
 
-        traceAnimation(
-            "probe.ownerStack.sample",
-            "session=\(tableState.ownerStackProbeSession) probeSample=\(ownerStackProbeSample) probeSampleLimit=\(ownerStackProbeMaxSamples) trigger=\(trigger) direction=\(tableState.ownerStackProbeDirection) target=\(targetID.uuidString) targetIndex=\(targetIndexPath.section):\(targetIndexPath.row) rowRectMinY=\(formatted(targetRowRect.minY)) rowRectMaxY=\(formatted(targetRowRect.maxY)) rowRectHeight=\(formatted(targetRowRect.height)) tableClipsToBounds=\(tableView.clipsToBounds) tableMasksToBounds=\(tableView.layer.masksToBounds) targetCellVisible=\(targetCellVisible) targetCellMinY=\(formatted(targetCellFrameInTable.minY)) targetCellMaxY=\(formatted(targetCellFrameInTable.maxY)) targetCellHeight=\(formatted(targetCellFrameInTable.height)) targetCellClipsToBounds=\(targetCellClips) targetCellMasksToBounds=\(targetCellMasks) targetCellAlpha=\(formatted(targetCellAlpha)) targetCellHidden=\(targetCellHidden) targetCellZ=\(formatted(targetCellZ)) targetCellOrder=\(targetCellOrder) targetContentMinY=\(formatted(targetContentFrameInTable.minY)) targetContentMaxY=\(formatted(targetContentFrameInTable.maxY)) targetContentHeight=\(formatted(targetContentFrameInTable.height)) targetContentClipsToBounds=\(targetContentClips) targetContentMasksToBounds=\(targetContentMasks) targetContentAlpha=\(formatted(targetContentAlpha)) targetContentHidden=\(targetContentHidden) hostViewPtr=\(hostSnapshot?.hostPointer ?? "nil") hostViewMinY=\(formatted(hostSnapshot?.hostFrameInTable.minY ?? 0)) hostViewMaxY=\(formatted(hostSnapshot?.hostFrameInTable.maxY ?? 0)) hostViewHeight=\(formatted(hostSnapshot?.hostFrameInTable.height ?? 0)) hostViewClipsToBounds=\(hostSnapshot?.hostClipsToBounds ?? false) hostViewMasksToBounds=\(hostSnapshot?.hostMasksToBounds ?? false) hostViewCompositingFilterActive=\(hostSnapshot?.hostCompositingFilterActive ?? false) hostViewAllowsGroupOpacity=\(hostSnapshot?.hostAllowsGroupOpacity ?? false) hostViewAlpha=\(formatted(hostSnapshot?.hostAlpha ?? 0)) hostViewHidden=\(hostSnapshot?.hostHidden ?? true) swiftUIRootPtr=\(hostSnapshot?.swiftUIRootPointer ?? "nil") swiftUIRootMinY=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.minY ?? 0)) swiftUIRootMaxY=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.maxY ?? 0)) swiftUIRootHeight=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.height ?? 0)) swiftUIRootClipsToBounds=\(hostSnapshot?.swiftUIRootClipsToBounds ?? false) swiftUIRootMasksToBounds=\(hostSnapshot?.swiftUIRootMasksToBounds ?? false) swiftUIRootCompositingFilterActive=\(hostSnapshot?.swiftUIRootCompositingFilterActive ?? false) swiftUIRootAllowsGroupOpacity=\(hostSnapshot?.swiftUIRootAllowsGroupOpacity ?? false) swiftUIRootAlpha=\(formatted(hostSnapshot?.swiftUIRootAlpha ?? 0)) swiftUIRootHidden=\(hostSnapshot?.swiftUIRootHidden ?? true) nextID=\(nextID?.uuidString ?? "nil") nextCellVisible=\(nextCellVisible) nextRowMinY=\(formatted(nextRowMinY)) nextRowHeight=\(formatted(nextRowHeight)) nextCellMinY=\(formatted(nextCellFrameInTable.minY)) nextCellMaxY=\(formatted(nextCellFrameInTable.maxY)) nextCellHeight=\(formatted(nextCellFrameInTable.height)) nextCellZ=\(formatted(nextCellZ)) nextCellOrder=\(nextCellOrder) rowGapY=\(formatted(rowGap)) cellGapY=\(formatted(cellGap)) cellOverlapY=\(formatted(cellOverlap)) stackRelation=\(stackRelation)"
+        let sampleMessage =
+            "session=\(tableState.ownerStackProbeSession) probeSample=\(ownerStackProbeSample) probeSampleLimit=\(ownerStackProbeMaxSamples) trigger=\(trigger) direction=\(tableState.ownerStackProbeDirection) target=\(targetID.uuidString) targetIndex=\(targetIndexPath.section):\(targetIndexPath.row) rowRectMinY=\(formatted(targetRowRect.minY)) rowRectMaxY=\(formatted(targetRowRect.maxY)) rowRectHeight=\(formatted(targetRowRect.height)) tableClipsToBounds=\(tableView.clipsToBounds) tableMasksToBounds=\(tableView.layer.masksToBounds) targetCellVisible=\(targetCellVisible) targetCellMinY=\(formatted(targetCellFrameInTable.minY)) targetCellMaxY=\(formatted(targetCellFrameInTable.maxY)) targetCellHeight=\(formatted(targetCellFrameInTable.height)) targetCellMinYShiftFromStart=\(formatted(targetCellMinYShiftFromStart)) targetCellClipsToBounds=\(targetCellClips) targetCellMasksToBounds=\(targetCellMasks) targetCellAlpha=\(formatted(targetCellAlpha)) targetCellHidden=\(targetCellHidden) targetCellZ=\(formatted(targetCellZ)) targetCellOrder=\(targetCellOrder) targetContentMinY=\(formatted(targetContentFrameInTable.minY)) targetContentMaxY=\(formatted(targetContentFrameInTable.maxY)) targetContentHeight=\(formatted(targetContentFrameInTable.height)) targetContentMinYShiftFromStart=\(formatted(targetContentMinYShiftFromStart)) targetContentClipsToBounds=\(targetContentClips) targetContentMasksToBounds=\(targetContentMasks) targetContentAlpha=\(formatted(targetContentAlpha)) targetContentHidden=\(targetContentHidden) hostViewPtr=\(hostSnapshot?.hostPointer ?? "nil") hostViewMinY=\(formatted(hostSnapshot?.hostFrameInTable.minY ?? 0)) hostViewMaxY=\(formatted(hostSnapshot?.hostFrameInTable.maxY ?? 0)) hostViewHeight=\(formatted(hostSnapshot?.hostFrameInTable.height ?? 0)) hostViewClipsToBounds=\(hostSnapshot?.hostClipsToBounds ?? false) hostViewMasksToBounds=\(hostSnapshot?.hostMasksToBounds ?? false) hostViewCompositingFilterActive=\(hostSnapshot?.hostCompositingFilterActive ?? false) hostViewAllowsGroupOpacity=\(hostSnapshot?.hostAllowsGroupOpacity ?? false) hostViewAlpha=\(formatted(hostSnapshot?.hostAlpha ?? 0)) hostViewHidden=\(hostSnapshot?.hostHidden ?? true) swiftUIRootPtr=\(hostSnapshot?.swiftUIRootPointer ?? "nil") swiftUIRootMinY=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.minY ?? 0)) swiftUIRootMaxY=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.maxY ?? 0)) swiftUIRootHeight=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.height ?? 0)) swiftUIRootClipsToBounds=\(hostSnapshot?.swiftUIRootClipsToBounds ?? false) swiftUIRootMasksToBounds=\(hostSnapshot?.swiftUIRootMasksToBounds ?? false) swiftUIRootCompositingFilterActive=\(hostSnapshot?.swiftUIRootCompositingFilterActive ?? false) swiftUIRootAllowsGroupOpacity=\(hostSnapshot?.swiftUIRootAllowsGroupOpacity ?? false) swiftUIRootAlpha=\(formatted(hostSnapshot?.swiftUIRootAlpha ?? 0)) swiftUIRootHidden=\(hostSnapshot?.swiftUIRootHidden ?? true) nextID=\(nextID?.uuidString ?? "nil") nextCellVisible=\(nextCellVisible) nextRowMinY=\(formatted(nextRowMinY)) nextRowHeight=\(formatted(nextRowHeight)) nextCellMinY=\(formatted(nextCellFrameInTable.minY)) nextCellMaxY=\(formatted(nextCellFrameInTable.maxY)) nextCellHeight=\(formatted(nextCellFrameInTable.height)) nextCellZ=\(formatted(nextCellZ)) nextCellOrder=\(nextCellOrder) rowGapY=\(formatted(rowGap)) cellGapY=\(formatted(cellGap)) cellOverlapY=\(formatted(cellOverlap)) cellOverlapYShiftFromStart=\(formatted(cellOverlapYShiftFromStart)) stackRelation=\(stackRelation)"
+        let shiftTriggerField = ownerStackShiftTriggerField(
+            targetCellMinYShiftFromStart: targetCellMinYShiftFromStart,
+            targetContentMinYShiftFromStart: targetContentMinYShiftFromStart,
+            cellOverlapYShiftFromStart: cellOverlapYShiftFromStart,
+            stackRelation: stackRelation
         )
+        captureOwnerStackShiftWindowIfNeeded(sampleMessage: sampleMessage, shiftTriggerField: shiftTriggerField)
+
+        traceAnimation("probe.ownerStack.sample", sampleMessage)
     }
 
     private func captureScrollAnchor(for affectedIDs: [UUID]) -> ScrollAnchor? {
@@ -1367,12 +1473,19 @@ struct LogRowHostedView: View {
     @State private var probeTopEdgeReplayTargetID: UUID? = nil
     @State private var probeTopEdgeBeginReplayMessage: String? = nil
     @State private var probeTopEdgeEarlySampleMessages: [String] = []
+    @State private var probeTopEdgeRecentSampleMessages: [String] = []
+    @State private var probeTopEdgeShiftWindowMessages: [String] = []
+    @State private var probeTopEdgeShiftDetected: Bool = false
+    @State private var probeTopEdgeShiftTriggerField: String = "none"
+    @State private var probeTopEdgeShiftPostSamplesRemaining: Int = 0
     @State private var localStateReplayTargetID: UUID? = nil
     @State private var localStateReplayMessages: [String] = []
     private let detailProbeSampleStride: Int = 8
     private let detailProbeTerminalThreshold: CGFloat = 0.02
     private let topEdgeProbeMaxSamples: Int = 4
     private let topEdgeProbeReplaySampleCount: Int = 1
+    private let topEdgeShiftReplayPreSamples: Int = 2
+    private let topEdgeShiftReplayPostSamples: Int = 2
     private let geometryScopeProbeMaxSamples: Int = 4
     private let localStateReplayMaxSamples: Int = 4
     private let topEdgeStableEpsilon: CGFloat = 0.5
@@ -1662,6 +1775,11 @@ struct LogRowHostedView: View {
                 probeTopEdgeReplayTargetID = nil
                 probeTopEdgeBeginReplayMessage = nil
                 probeTopEdgeEarlySampleMessages = []
+                probeTopEdgeRecentSampleMessages = []
+                probeTopEdgeShiftWindowMessages = []
+                probeTopEdgeShiftDetected = false
+                probeTopEdgeShiftTriggerField = "none"
+                probeTopEdgeShiftPostSamplesRemaining = 0
             }
             .onChange(of: tableState.collapseProbeActive) { _, isActive in
                 if !isActive {
@@ -1886,6 +2004,30 @@ struct LogRowHostedView: View {
         )
     }
 
+    private func captureTopEdgeShiftWindowIfNeeded(sampleMessage: String, shiftTriggerField: String?) {
+        probeTopEdgeRecentSampleMessages.append(sampleMessage)
+        if probeTopEdgeRecentSampleMessages.count > topEdgeShiftReplayPreSamples + 1 {
+            probeTopEdgeRecentSampleMessages.removeFirst(
+                probeTopEdgeRecentSampleMessages.count - (topEdgeShiftReplayPreSamples + 1)
+            )
+        }
+
+        if !probeTopEdgeShiftDetected, let shiftTriggerField {
+            probeTopEdgeShiftDetected = true
+            probeTopEdgeShiftTriggerField = shiftTriggerField
+            probeTopEdgeShiftWindowMessages = probeTopEdgeRecentSampleMessages
+            probeTopEdgeShiftPostSamplesRemaining = topEdgeShiftReplayPostSamples
+            return
+        }
+
+        guard probeTopEdgeShiftDetected else { return }
+        guard probeTopEdgeShiftPostSamplesRemaining > 0 else { return }
+        if probeTopEdgeShiftWindowMessages.last != sampleMessage {
+            probeTopEdgeShiftWindowMessages.append(sampleMessage)
+        }
+        probeTopEdgeShiftPostSamplesRemaining -= 1
+    }
+
     private func traceTopEdgeAnchorSample(
         logID: UUID,
         renderIdentity: String,
@@ -1960,6 +2102,18 @@ struct LogRowHostedView: View {
         let detailClipContainerShift = formatted(detailClipContainerMinYShiftFromStart)
         let cardOuterHeightShift = formatted(cardOuterHeightShiftFromStart)
         let detailVisibleHeightShift = formatted(detailVisibleHeightShiftFromStart)
+        let shiftTriggerField: String? = {
+            if abs(cardVisibleTopEdgeMinYShiftFromStart) > topEdgeStableEpsilon {
+                return "cardVisibleTopEdgeMinYShiftFromStart"
+            }
+            if abs(cardOuterMinYShiftFromStart) > topEdgeStableEpsilon {
+                return "cardOuterMinYShiftFromStart"
+            }
+            if abs(detailClipContainerMinYShiftFromStart) > topEdgeStableEpsilon {
+                return "detailClipContainerMinYShiftFromStart"
+            }
+            return nil
+        }()
         let topEdgeMovedBeforeHeightSettles =
             abs(cardOuterMinYShiftFromStart) > topEdgeStableEpsilon
             && abs(cardOuterHeightShiftFromStart) <= topEdgeStableEpsilon
@@ -1976,6 +2130,7 @@ struct LogRowHostedView: View {
         if probeTopEdgeEarlySampleMessages.count < topEdgeProbeReplaySampleCount {
             probeTopEdgeEarlySampleMessages.append(sampleMessage)
         }
+        captureTopEdgeShiftWindowIfNeeded(sampleMessage: sampleMessage, shiftTriggerField: shiftTriggerField)
 
         traceHostedRow(
             "swiftui.row.topAnchorProbe.sample",
@@ -1995,12 +2150,27 @@ struct LogRowHostedView: View {
         guard probeTopEdgeReplayTargetID == logID else { return }
         guard let beginMessage = probeTopEdgeBeginReplayMessage else { return }
         traceHostedRow("probe.topEdge.begin", "\(beginMessage) replay=tail")
-        for sampleMessage in probeTopEdgeEarlySampleMessages.prefix(topEdgeProbeReplaySampleCount) {
-            traceHostedRow("swiftui.row.topAnchorProbe.sample", "\(sampleMessage) replay=tail")
+        if probeTopEdgeShiftDetected, !probeTopEdgeShiftWindowMessages.isEmpty {
+            traceHostedRow(
+                "probe.topEdge.shiftCapture",
+                "session=\(tableState.topEdgeProbeSession) direction=\(tableState.topEdgeProbeDirection) target=\(logID.uuidString) triggerField=\(probeTopEdgeShiftTriggerField) retainedSamples=\(probeTopEdgeShiftWindowMessages.count) preSamples=\(topEdgeShiftReplayPreSamples) postSamples=\(topEdgeShiftReplayPostSamples) replay=tail"
+            )
+            for sampleMessage in probeTopEdgeShiftWindowMessages {
+                traceHostedRow("swiftui.row.topAnchorProbe.sample", "\(sampleMessage) replay=shiftWindow")
+            }
+        } else {
+            for sampleMessage in probeTopEdgeEarlySampleMessages.prefix(topEdgeProbeReplaySampleCount) {
+                traceHostedRow("swiftui.row.topAnchorProbe.sample", "\(sampleMessage) replay=tail")
+            }
         }
         probeTopEdgeReplayTargetID = nil
         probeTopEdgeBeginReplayMessage = nil
         probeTopEdgeEarlySampleMessages = []
+        probeTopEdgeRecentSampleMessages = []
+        probeTopEdgeShiftWindowMessages = []
+        probeTopEdgeShiftDetected = false
+        probeTopEdgeShiftTriggerField = "none"
+        probeTopEdgeShiftPostSamplesRemaining = 0
     }
 
     private func captureLocalStateReplayIfNeeded(
@@ -2159,9 +2329,9 @@ final class HostingLogCell: UITableViewCell {
         return pixelRound(size.height)
     }
 
-    func ownerLayerSnapshot(in tableView: UITableView) -> HostOwnerLayerSnapshot? {
+    fileprivate func ownerLayerSnapshot(in tableView: UITableView) -> HostOwnerLayerSnapshot? {
         guard let host = hostingController else { return nil }
-        let hostView = host.view
+        guard let hostView = host.view else { return nil }
         let rootView = hostView.subviews.first
         let hostFrameInTable = hostView.convert(hostView.bounds, to: tableView)
         let rootFrameInTable: CGRect

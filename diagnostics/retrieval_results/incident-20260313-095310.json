@@ -1,0 +1,34 @@
+{
+  "incident_id": "incident-20260313-095310",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "subsystem_candidates": [
+      "LogsTableViewController visible-owner probe path (probe.ownerStack.sample + swiftui.row.topAnchorProbe.sample)",
+      "top-edge replay retention windowing",
+      "owner-stack overlap/stack-relation transition capture"
+    ],
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Current incident retains only zero-shift owner-stack/top-edge samples in retained tail, leaving first diverging owner unresolved.",
+          "Incident evidence shows collapse height change is captured, but retained visible-owner shift fields remain at zero in the preserved sample set.",
+          "Existing replay strategy is passive tail replay and can miss the critical jump instant when high-volume breadcrumbs evict transition-start lines."
+        ],
+        "contradicting_evidence": [
+          "No retained sample in this incident provides a non-zero shift in top-edge or owner-stack fields, so no owner attribution can be concluded."
+        ],
+        "missing_evidence": [
+          "A single collapse capture where first non-zero shift is preserved with pre/post context in the same probe session."
+        ],
+        "next_discriminating_check": "Add event-driven retention in LogsTableViewController visible-owner probes: when the first non-zero shift appears in top-edge/owner-stack trigger fields, preserve a small pre/post sample window and replay it at tail."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "capture-retention gap; owner attribution still ambiguous",
+      "first_diverging_owner": "none retained"
+    },
+    "triage_policy_mode": "ambiguous",
+    "next_action_mode": "Execute one narrow instrumentation check in the local visible-owner probe path; no bug fix"
+  }
+}

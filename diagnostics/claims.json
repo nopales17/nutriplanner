@@ -393,6 +393,16 @@
         "LogsTableViewController.swift"
       ],
       "checked_at": "2026-03-13"
+    },
+    {
+      "id": "estimate-row-visible-owner-shift-window-replay-captures-first-nonzero",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "Visible-owner probes now use event-driven shift capture: when the first non-zero shift is detected in top-edge fields (`cardVisibleTopEdgeMinYShiftFromStart`, `cardOuterMinYShiftFromStart`, `detailClipContainerMinYShiftFromStart`) or owner-stack fields (`targetCellMinYShiftFromStart`, `targetContentMinYShiftFromStart`, `cellOverlapYShiftFromStart`, stack-relation change), the same probe session preserves a small pre/post sample window and replays it at tail (`replay=shiftWindow`) to survive breadcrumb tail truncation.",
+      "files": [
+        "LogsTableViewController.swift"
+      ],
+      "checked_at": "2026-03-13"
     }
   ],
   "claim_sets": {
