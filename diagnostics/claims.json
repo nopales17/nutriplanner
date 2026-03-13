@@ -265,6 +265,16 @@
       "retrieval_priority": "primary"
     },
     {
+      "id": "estimate-row-detail-frame-height-is-discrete-toggle",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "Logs row detail reveal currently uses a discrete frame-height toggle (`.frame(height: isExpanded ? nil : 0)`) and probe payloads report `detailFrameHeightParam` as `isExpanded ? nil : 0`, so collapse rendering is driven by target-state snapping rather than an animatable height scalar.",
+      "files": [
+        "LogsTableViewController.swift"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
       "id": "nutriplanner-sync-root-copies-placeholder-resources",
       "status": "supported",
       "subsystem": "build-resources",

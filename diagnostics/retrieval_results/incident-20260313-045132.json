@@ -1,0 +1,23 @@
+{
+  "incident_id": "incident-20260313-045132",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "During collapse, render probes show animating=true while revealProgress interpolates from 0.904 down to 0.009, but detailFrameHeightParam remains 0.000 and detailVisibleHeight remains 0.000 for every sampled frame.",
+          "Opacity probe samples show interpolatedOpacity animating smoothly (0.853 -> 0.009) while render-path detailOpacity stays 0.000, indicating interpolation exists but the rendered branch is already in collapsed target state."
+        ],
+        "contradicting_evidence": [
+          "No evidence in this incident of tentative-vs-committed state channel divergence; the failure is localized to row render interpolation under active animation.",
+          "rowToken is stable (FCA096BA-98E6-4482-8C03-D4579EFD101D) across all captured samples, which argues against row/view identity recreation as primary cause."
+        ],
+        "missing_evidence": [
+          "Earliest probe samples (1-3) are absent in this incident payload due truncation, so the exact first-frame snap boundary is inferred from previous incident evidence."
+        ],
+        "next_discriminating_check": "Inspect the detail render code path to verify whether frame/clip parameters are driven by a discrete boolean (isExpanded) instead of an animatable scalar during collapse."
+      }
+    ]
+  }
+}
