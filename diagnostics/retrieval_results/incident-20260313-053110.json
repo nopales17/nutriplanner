@@ -1,7 +1,7 @@
 {
   "incident_id": "incident-20260313-053110",
   "retrieval": {
-    "verdict": "motif_non_match",
+    "verdict": "ambiguous",
     "candidates": [
       {
         "motif_id": "motif-source-of-truth-state-promotion-divergence",
@@ -10,13 +10,13 @@
           "Animation lifecycle completes normally (`probe.collapse.end` followed by `table.afterHeightAnimation` and `animation.complete`), so animation infrastructure is active while detail-region geometry remains snapped."
         ],
         "contradicting_evidence": [
-          "No evidence indicates tentative-vs-committed state promotion failure; symptoms are isolated to render-time geometry interpolation.",
-          "This payload does not include synchronized outer-card/border/child scope events, so phase alignment across all scopes remains partially unobserved."
+          "No evidence indicates tentative-vs-committed state promotion failure; symptoms are isolated to render-time geometry interpolation."
         ],
         "missing_evidence": [
+          "The incident payload is capped at 50 breadcrumbs, and high-frequency detail probes consumed the budget before synchronized `geometryScopeProbe` events were exported.",
           "One transition capture containing row/container, outer-card shell, border path, detail boundary, and below-boundary child probes in the same frame sequence."
         ],
-        "next_discriminating_check": "Run one collapse transition with synchronized multi-scope probes enabled and verify the earliest frame where detail boundary geometry diverges from the shared interpolated driver."
+        "next_discriminating_check": "Run one collapse transition with selective probe emission (target row + collapse window + reduced sample cadence) and verify whether `geometryScopeProbe` survives export and identifies the earliest diverging scope."
       }
     ]
   }

@@ -798,6 +798,8 @@ struct LogRowHostedView: View {
     @State private var probeGeometryScopeSample: Int = 0
     @State private var probeGeometryScopeLastSignature: String = ""
     @State private var probeRowToken: String = UUID().uuidString
+    private let detailProbeSampleStride: Int = 4
+    private let detailProbeTerminalThreshold: CGFloat = 0.02
 
     private var log: MealLog? {
         for section in tableState.sections {
@@ -1060,9 +1062,11 @@ struct LogRowHostedView: View {
         guard signature != probeDetailRenderLastSignature else { return }
         probeDetailRenderLastSignature = signature
         probeDetailRenderSample += 1
+        let sampleIndex = probeDetailRenderSample
+        guard shouldEmitDetailProbeSample(sampleIndex: sampleIndex, progress: animatableRevealProgress) else { return }
         traceHostedRow(
             "swiftui.row.detailRenderProbe.sample",
-            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeDetailRenderSample) rowToken=\(probeRowToken) revealProgress=\(revealProgress) detailOpacity=\(opacity) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) targetID=\(logID.uuidString)"
+            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(sampleIndex) rowToken=\(probeRowToken) revealProgress=\(revealProgress) detailOpacity=\(opacity) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) targetID=\(logID.uuidString)"
         )
     }
 
@@ -1090,9 +1094,11 @@ struct LogRowHostedView: View {
         guard signature != probeDetailOpacityLastSignature else { return }
         probeDetailOpacityLastSignature = signature
         probeDetailOpacitySample += 1
+        let sampleIndex = probeDetailOpacitySample
+        guard shouldEmitDetailProbeSample(sampleIndex: sampleIndex, progress: interpolatedOpacity) else { return }
         traceHostedRow(
             "swiftui.row.detailOpacityProbe.sample",
-            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeDetailOpacitySample) rowToken=\(probeRowToken) interpolatedOpacity=\(interpolated) targetOpacity=\(target) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) targetID=\(logID.uuidString)"
+            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(sampleIndex) rowToken=\(probeRowToken) interpolatedOpacity=\(interpolated) targetOpacity=\(target) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) targetID=\(logID.uuidString)"
         )
     }
 
@@ -1103,6 +1109,8 @@ struct LogRowHostedView: View {
         isEditing: Bool,
         isHeightAnimating: Bool
     ) {
+        guard tableState.collapseProbeActive else { return }
+        guard tableState.collapseProbeTargetID == logID else { return }
         guard isHeightAnimating else { return }
         let rowMinY = formatted(probeRowContainerFrame.minY)
         let rowMaxY = formatted(probeRowContainerFrame.maxY)
@@ -1132,8 +1140,15 @@ struct LogRowHostedView: View {
 
         traceHostedRow(
             "swiftui.row.geometryScopeProbe.sample",
-            "\(renderIdentity) probeSample=\(probeGeometryScopeSample) rowToken=\(probeRowToken) rowMinY=\(rowMinY) rowMaxY=\(rowMaxY) rowHeight=\(rowHeight) cardOuterMinY=\(cardOuterMinY) cardOuterMaxY=\(cardOuterMaxY) cardOuterHeight=\(cardOuterHeight) cardBorderMinY=\(cardBorderMinY) cardBorderMaxY=\(cardBorderMaxY) cardBorderHeight=\(cardBorderHeight) detailRegionMinY=\(detailRegionMinY) detailRegionMaxY=\(detailRegionMaxY) detailRegionHeight=\(detailRegionHeight) editRegionMinY=\(editRegionMinY) editRegionMaxY=\(editRegionMaxY) editRegionHeight=\(editRegionHeight) belowBoundaryChildMinY=\(belowChildMinY) belowBoundaryChildMaxY=\(belowChildMaxY) belowBoundaryChildHeight=\(belowChildHeight) belowBoundaryDeltaY=\(belowDelta) detailVisibleHeight=\(detailVisibleHeight) targetID=\(logID.uuidString)"
+            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeGeometryScopeSample) rowToken=\(probeRowToken) rowMinY=\(rowMinY) rowMaxY=\(rowMaxY) rowHeight=\(rowHeight) cardOuterMinY=\(cardOuterMinY) cardOuterMaxY=\(cardOuterMaxY) cardOuterHeight=\(cardOuterHeight) cardBorderMinY=\(cardBorderMinY) cardBorderMaxY=\(cardBorderMaxY) cardBorderHeight=\(cardBorderHeight) detailRegionMinY=\(detailRegionMinY) detailRegionMaxY=\(detailRegionMaxY) detailRegionHeight=\(detailRegionHeight) editRegionMinY=\(editRegionMinY) editRegionMaxY=\(editRegionMaxY) editRegionHeight=\(editRegionHeight) belowBoundaryChildMinY=\(belowChildMinY) belowBoundaryChildMaxY=\(belowChildMaxY) belowBoundaryChildHeight=\(belowChildHeight) belowBoundaryDeltaY=\(belowDelta) detailVisibleHeight=\(detailVisibleHeight) targetID=\(logID.uuidString)"
         )
+    }
+
+    private func shouldEmitDetailProbeSample(sampleIndex: Int, progress: CGFloat) -> Bool {
+        if sampleIndex <= 2 { return true }
+        if sampleIndex % detailProbeSampleStride == 0 { return true }
+        if progress <= detailProbeTerminalThreshold { return true }
+        return false
     }
 
     private func formatted(_ value: CGFloat) -> String {
