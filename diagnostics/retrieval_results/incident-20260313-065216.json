@@ -1,0 +1,24 @@
+{
+  "incident_id": "incident-20260313-065216",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Collapse state transitions complete (`probe.collapse.end`, `animation.complete`) without obvious model-state mismatch.",
+          "At collapse probe sample, `expanded=false` and `detailVisibleHeight=0.000` align with intended committed collapsed state."
+        ],
+        "contradicting_evidence": [
+          "The remaining symptom is render-path specific (collapse snap) rather than a business-state promotion mismatch."
+        ],
+        "missing_evidence": [
+          "Whether collapse still closes an immediate/discrete visibility gate before any animated scalar can interpolate.",
+          "Whether collapse takes a different transaction/animation path than expand at the detail container.",
+          "Whether collapse bypasses animated scalar derivation due to a boolean branch in detail render/state derivation."
+        ],
+        "next_discriminating_check": "Add a minimal collapse-only render probe in `LogsTableViewController.swift` at the post-gate detail container to log: gate-open boolean, target/interpolated scalar, transaction animation metadata, and branch source values for both expand and collapse sessions."
+      }
+    ]
+  }
+}

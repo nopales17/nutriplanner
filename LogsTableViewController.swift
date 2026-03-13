@@ -892,18 +892,23 @@ struct LogRowHostedView: View {
                         isHeightAnimating: isHeightAnimating
                     )
                 },
-                onDetailOpacityAnimatableSample: { interpolatedOpacity, targetOpacity, frameHeightParam, intrinsicDetailHeight, visibleDetailHeight in
+                onDetailOpacityAnimatableSample: { rawOpacity, renderedOpacity, targetOpacity, visibilityGateOpen, frameHeightParam, intrinsicDetailHeight, visibleDetailHeight, transactionDisablesAnimations, inheritedAnimationDuration, inheritedAnimationsEnabled in
                     traceCollapseDetailOpacitySample(
                         logID: log.id,
                         renderIdentity: renderIdentity,
                         isExpanded: isExpanded,
                         isEditing: isEditing,
                         isHeightAnimating: isHeightAnimating,
-                        interpolatedOpacity: interpolatedOpacity,
+                        rawOpacity: rawOpacity,
+                        renderedOpacity: renderedOpacity,
                         targetOpacity: targetOpacity,
+                        visibilityGateOpen: visibilityGateOpen,
                         frameHeightParam: frameHeightParam,
                         intrinsicDetailHeight: intrinsicDetailHeight,
-                        visibleDetailHeight: visibleDetailHeight
+                        visibleDetailHeight: visibleDetailHeight,
+                        transactionDisablesAnimations: transactionDisablesAnimations,
+                        inheritedAnimationDuration: inheritedAnimationDuration,
+                        inheritedAnimationsEnabled: inheritedAnimationsEnabled
                     )
                 },
                 geometryCoordinateSpaceName: probeGeometryCoordinateSpaceName
@@ -1027,29 +1032,39 @@ struct LogRowHostedView: View {
         isExpanded: Bool,
         isEditing: Bool,
         isHeightAnimating: Bool,
-        interpolatedOpacity: CGFloat,
+        rawOpacity: CGFloat,
+        renderedOpacity: CGFloat,
         targetOpacity: CGFloat,
+        visibilityGateOpen: Bool,
         frameHeightParam: CGFloat?,
         intrinsicDetailHeight: CGFloat,
-        visibleDetailHeight: CGFloat
+        visibleDetailHeight: CGFloat,
+        transactionDisablesAnimations: Bool,
+        inheritedAnimationDuration: CGFloat,
+        inheritedAnimationsEnabled: Bool
     ) {
         guard tableState.collapseProbeActive else { return }
         guard tableState.collapseProbeTargetID == logID else { return }
         guard isHeightAnimating else { return }
-        let interpolated = formatted(interpolatedOpacity)
+        let raw = formatted(rawOpacity)
+        let rendered = formatted(renderedOpacity)
         let target = formatted(targetOpacity)
+        let gateOpen = visibilityGateOpen ? "true" : "false"
         let frameHeight = frameHeightParam.map(formatted) ?? "nil"
         let intrinsicHeight = formatted(intrinsicDetailHeight)
         let visibleHeight = formatted(visibleDetailHeight)
-        let signature = "\(interpolated)|\(target)|\(frameHeight)|\(intrinsicHeight)|\(visibleHeight)|\(isExpanded)|\(isEditing)|\(tableState.layoutPassID)"
+        let txDisablesAnimations = transactionDisablesAnimations ? "true" : "false"
+        let inheritedDuration = formatted(inheritedAnimationDuration)
+        let inheritedEnabled = inheritedAnimationsEnabled ? "true" : "false"
+        let signature = "\(raw)|\(rendered)|\(target)|\(gateOpen)|\(frameHeight)|\(intrinsicHeight)|\(visibleHeight)|\(txDisablesAnimations)|\(inheritedDuration)|\(inheritedEnabled)|\(isExpanded)|\(isEditing)|\(tableState.layoutPassID)"
         guard signature != probeDetailOpacityLastSignature else { return }
         probeDetailOpacityLastSignature = signature
         probeDetailOpacitySample += 1
         let sampleIndex = probeDetailOpacitySample
-        guard shouldEmitDetailProbeSample(sampleIndex: sampleIndex, progress: interpolatedOpacity) else { return }
+        guard shouldEmitDetailProbeSample(sampleIndex: sampleIndex, progress: renderedOpacity) else { return }
         traceHostedRow(
             "swiftui.row.detailOpacityProbe.sample",
-            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(sampleIndex) rowToken=\(probeRowToken) interpolatedOpacity=\(interpolated) targetOpacity=\(target) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) targetID=\(logID.uuidString)"
+            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(sampleIndex) rowToken=\(probeRowToken) rawAnimatableOpacity=\(raw) renderedOpacity=\(rendered) targetOpacity=\(target) visibilityGateOpen=\(gateOpen) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) txDisablesAnimations=\(txDisablesAnimations) inheritedAnimationDuration=\(inheritedDuration) inheritedAnimationsEnabled=\(inheritedEnabled) targetID=\(logID.uuidString)"
         )
     }
 
@@ -1247,7 +1262,7 @@ private struct LogRowCardView: View {
     let onBoundaryFirstChildFrameChange: (CGRect) -> Void
     let onBelowBoundaryChildFrameChange: (CGRect) -> Void
     let onDetailHeightChange: (CGFloat) -> Void
-    let onDetailOpacityAnimatableSample: (CGFloat, CGFloat, CGFloat?, CGFloat, CGFloat) -> Void
+    let onDetailOpacityAnimatableSample: (CGFloat, CGFloat, CGFloat, Bool, CGFloat?, CGFloat, CGFloat, Bool, CGFloat, Bool) -> Void
     let geometryCoordinateSpaceName: String
 
     @Environment(\.colorScheme) private var colorScheme
@@ -1408,13 +1423,18 @@ private struct LogRowCardView: View {
                     DetailOpacityAnimatableProbeModifier(
                         opacity: detailTargetOpacity,
                         isVisibilityGateOpen: detailVisibilityGateOpen,
-                        onSample: { interpolatedOpacity in
+                        onSample: { rawOpacity, renderedOpacity, visibilityGateOpen in
                             onDetailOpacityAnimatableSample(
-                                interpolatedOpacity,
+                                rawOpacity,
+                                renderedOpacity,
                                 detailTargetOpacity,
+                                visibilityGateOpen,
                                 detailFrameHeight,
                                 detailIntrinsicHeight,
-                                detailVisibleHeight
+                                detailVisibleHeight,
+                                isHeightAnimating && isExpanded,
+                                UIView.inheritedAnimationDuration,
+                                UIView.areAnimationsEnabled
                             )
                         }
                     )
@@ -1579,16 +1599,18 @@ private struct LogRowCardView: View {
 private struct DetailOpacityAnimatableProbeModifier: AnimatableModifier {
     var opacity: CGFloat
     var isVisibilityGateOpen: Bool
-    let onSample: (CGFloat) -> Void
+    let onSample: (CGFloat, CGFloat, Bool) -> Void
 
     var animatableData: CGFloat {
         get { opacity }
         set {
             opacity = newValue
-            let sampledOpacity = isVisibilityGateOpen ? newValue : 0
+            let rawOpacity = newValue
+            let gateOpen = isVisibilityGateOpen
+            let renderedOpacity = gateOpen ? rawOpacity : 0
             let sample = onSample
             DispatchQueue.main.async {
-                sample(sampledOpacity)
+                sample(rawOpacity, renderedOpacity, gateOpen)
             }
         }
     }
