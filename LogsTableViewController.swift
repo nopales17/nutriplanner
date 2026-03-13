@@ -2039,10 +2039,11 @@ private struct LogRowCardView: View {
 
     var body: some View {
         let resolvedDetailPresence = min(max(detailPresence ?? (isExpanded ? 1 : 0), 0), 1)
-        let detailFrameHeightValue = detailIntrinsicHeight * resolvedDetailPresence
-        let detailVisibilityGateOpen = resolvedDetailPresence > 0.001
-        let detailFrameHeight: CGFloat? = resolvedDetailPresence >= 0.999 ? nil : detailFrameHeightValue
-        let detailTargetOpacity: CGFloat = resolvedDetailPresence
+        let collapseClampedDetailPresence = isExpanded ? resolvedDetailPresence : 0
+        let detailFrameHeightValue = detailIntrinsicHeight * collapseClampedDetailPresence
+        let detailVisibilityGateOpen = collapseClampedDetailPresence > 0.001
+        let detailFrameHeight: CGFloat? = collapseClampedDetailPresence >= 0.999 ? nil : detailFrameHeightValue
+        let detailTargetOpacity: CGFloat = collapseClampedDetailPresence
         let microContent = VStack(alignment: .leading, spacing: 8) {
             Divider()
                 .padding(.horizontal, 12)
@@ -2215,7 +2216,7 @@ private struct LogRowCardView: View {
                     )
                 )
                 .accessibilityHidden(!detailVisibilityGateOpen)
-                .animation(.easeInOut(duration: 0.25), value: resolvedDetailPresence)
+                .animation(.easeInOut(duration: 0.25), value: collapseClampedDetailPresence)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(cardBackground(corners: .allCorners))
@@ -2265,8 +2266,14 @@ private struct LogRowCardView: View {
                 detailIntrinsicHeight,
                 detailVisibleHeight
             )
-            withAnimation(.easeInOut(duration: 0.25)) {
-                detailPresence = newValue ? 1 : 0
+            if newValue {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    detailPresence = 1
+                }
+            } else {
+                detailPresence = 0
+                detailVisibleHeight = 0
+                onDetailHeightChange(0)
             }
             onLocalStateSnapshot(
                 "isExpandedChanged.after.new=\(newValue)",
