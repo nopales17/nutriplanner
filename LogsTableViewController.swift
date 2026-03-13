@@ -34,6 +34,15 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private var topEdgeProbeSession: Int = 0
     private var topEdgeProbeDirection: String = "none"
     private var animationTraceSequence: Int = 0
+    private var phaseTransitionSequence: Int = 0
+    private var rowLastEditSequence: [UUID: Int] = [:]
+    private var rowExpandCollapseRunCount: [UUID: Int] = [:]
+    private var rowLastExpandCollapseSequence: [UUID: Int] = [:]
+    private var rowLastExpandCollapseDirection: [UUID: String] = [:]
+    private var siblingProbeSession: Int = 0
+    private var siblingProbeDisplayLink: CADisplayLink?
+    private var siblingProbeState: SiblingProbeState?
+    private let siblingProbeEpsilon: CGFloat = 0.5
 
     private var onDelete: ((UUID) -> Void)?
     private var onToggleExpanded: ((UUID) -> Void)?
@@ -226,6 +235,8 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
 
     private func applyUpdate(_ payload: PendingUpdate) {
         debugLog("applyUpdate payload: sections=\(payload.sections.count) expanded=\(String(describing: payload.expandedID)) editing=\(String(describing: payload.editingID))")
+        phaseTransitionSequence += 1
+        let transitionSequence = phaseTransitionSequence
 
         let previousSections = sections
         let previousWeeklySummary = weeklySummary
@@ -258,9 +269,28 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         tableState.onToggleFavorite = payload.onToggleFavorite
         tableState.onCancelEdit = payload.onCancelEdit
         tableState.onUpdate = payload.onUpdate
+        tableState.phaseProbeTargetID = nil
+        tableState.phaseProbeTransitionSequence = transitionSequence
+        tableState.phaseProbeDirection = "none"
+        tableState.phaseProbeRunOrdinal = 0
+        tableState.phaseProbePreviousDirection = "none"
+        tableState.phaseProbePreviousTransitionSequence = -1
+        tableState.phaseProbePriorEditSequence = -1
+        tableState.phaseProbeHasPriorEdit = false
+        tableState.phaseProbeEditDelta = -1
+        tableState.phaseProbeEditActiveForTarget = false
 
         let expandedChanged = oldExpandedID != payload.expandedID
         let editingChanged = oldEditingID != payload.editingID
+        if editingChanged {
+            if let newEditingID = payload.editingID {
+                rowLastEditSequence[newEditingID] = transitionSequence
+            }
+            traceAnimation(
+                "probe.sequence.editTransition",
+                "transitionSeq=\(transitionSequence) oldEditing=\(formattedID(oldEditingID)) newEditing=\(formattedID(payload.editingID)) oldExpanded=\(formattedID(oldExpandedID)) newExpanded=\(formattedID(payload.expandedID))"
+            )
+        }
         let isCollapsing = expandedChanged && oldExpandedID != nil && payload.expandedID == nil
         isCollapsingAnimation = isCollapsing
         if isCollapsing, let oldExpandedID {
@@ -289,6 +319,31 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             topEdgeProbeDirection = direction
             topEdgeProbeTargetID = targetID
             if let targetID {
+                let previousRunCount = rowExpandCollapseRunCount[targetID] ?? 0
+                let runOrdinal = previousRunCount + 1
+                let previousDirection = rowLastExpandCollapseDirection[targetID] ?? "none"
+                let previousTransition = rowLastExpandCollapseSequence[targetID] ?? -1
+                let priorEditSequence = rowLastEditSequence[targetID] ?? -1
+                let hasPriorEdit = priorEditSequence >= 0
+                let editDelta = hasPriorEdit ? (transitionSequence - priorEditSequence) : -1
+                let editActiveForTarget = payload.editingID == targetID || oldEditingID == targetID
+                rowExpandCollapseRunCount[targetID] = runOrdinal
+                rowLastExpandCollapseDirection[targetID] = direction
+                rowLastExpandCollapseSequence[targetID] = transitionSequence
+                tableState.phaseProbeTargetID = targetID
+                tableState.phaseProbeTransitionSequence = transitionSequence
+                tableState.phaseProbeDirection = direction
+                tableState.phaseProbeRunOrdinal = runOrdinal
+                tableState.phaseProbePreviousDirection = previousDirection
+                tableState.phaseProbePreviousTransitionSequence = previousTransition
+                tableState.phaseProbePriorEditSequence = priorEditSequence
+                tableState.phaseProbeHasPriorEdit = hasPriorEdit
+                tableState.phaseProbeEditDelta = editDelta
+                tableState.phaseProbeEditActiveForTarget = editActiveForTarget
+                traceAnimation(
+                    "probe.sequence.context",
+                    "transitionSeq=\(transitionSequence) target=\(targetID.uuidString) direction=\(direction) runOrdinal=\(runOrdinal) previousDirection=\(previousDirection) previousTransitionSeq=\(previousTransition) priorEditSeq=\(priorEditSequence) hasPriorEdit=\(hasPriorEdit) editDelta=\(editDelta) editActiveForTarget=\(editActiveForTarget)"
+                )
                 topEdgeProbeSession += 1
                 tableState.topEdgeProbeTargetID = targetID
                 tableState.topEdgeProbeSession = topEdgeProbeSession
@@ -416,6 +471,19 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         } else {
             tableState.topEdgeProbeActive = false
         }
+        if collapseProbeIsActive, let target = collapseProbeTargetID {
+            beginSiblingProbeIfNeeded(
+                targetID: target,
+                direction: topEdgeProbeDirection,
+                animationStart: animationStart
+            )
+        } else {
+            stopSiblingProbeDisplayLink()
+            siblingProbeState = nil
+            tableState.siblingProbeActive = false
+            tableState.siblingProbeTargetID = nil
+            tableState.siblingProbeNextID = nil
+        }
         traceAnimation(
             "animation.start",
             "affected=\(affectedIDs.map { $0.uuidString }) expanded=\(formattedID(expandedID)) editing=\(formattedID(editingID)) targetMap=\(affectedIDs.map { "\($0.uuidString)->\(String(describing: indexPathForItem(id: $0)))" }) anchor=\(describe(anchor))"
@@ -480,6 +548,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                     "session=\(self.topEdgeProbeSession) direction=\(self.topEdgeProbeDirection) target=\(self.formattedID(self.topEdgeProbeTargetID)) elapsed=\(String(format: "%.6f", ProcessInfo.processInfo.systemUptime - animationStart))"
                 )
             }
+            self.finishSiblingProbe(animationEnd: ProcessInfo.processInfo.systemUptime)
             self.tableState.collapseProbeActive = false
             self.tableState.collapseProbeTargetID = nil
             self.collapseProbeTargetID = nil
@@ -508,6 +577,11 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         isAnimatingHeight = false
         tableState.collapseProbeActive = false
         tableState.topEdgeProbeActive = false
+        stopSiblingProbeDisplayLink()
+        siblingProbeState = nil
+        tableState.siblingProbeActive = false
+        tableState.siblingProbeTargetID = nil
+        tableState.siblingProbeNextID = nil
         debugLog("finishHeightAnimation")
     }
 
@@ -517,6 +591,249 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             case rowTop(UUID, CGFloat)
         }
         let kind: Kind
+    }
+
+    private struct RowFrameProbeSample {
+        let indexPath: IndexPath
+        let minY: CGFloat
+        let maxY: CGFloat
+        let height: CGFloat
+        let zPosition: CGFloat
+        let siblingIndex: Int
+        let isVisible: Bool
+    }
+
+    private struct SiblingProbeState {
+        let session: Int
+        let direction: String
+        let transitionSequence: Int
+        let targetID: UUID
+        let nextID: UUID
+        let targetRunOrdinal: Int
+        let hasPriorEditForTarget: Bool
+        let animationStartUptime: TimeInterval
+        let baselineTargetMinY: CGFloat
+        let baselineTargetHeight: CGFloat
+        let baselineNextMinY: CGFloat
+        let baselineGap: CGFloat
+        let baselineStackRelation: String
+        var lastTargetMinY: CGFloat
+        var lastTargetHeight: CGFloat
+        var lastNextMinY: CGFloat
+        var lastStackRelation: String
+        var sampleCount: Int
+        var stackRelationChangeCount: Int
+        var lastTargetOuterChangeUptime: TimeInterval?
+        var firstNextTopMoveUptime: TimeInterval?
+        var minGap: CGFloat
+        var maxOverlap: CGFloat
+    }
+
+    private func nextEntryID(after id: UUID) -> UUID? {
+        let flatIDs = sections.flatMap { $0.entries.map(\.id) }
+        guard let index = flatIDs.firstIndex(of: id), index + 1 < flatIDs.count else { return nil }
+        return flatIDs[index + 1]
+    }
+
+    private func rowFrameProbeSample(for id: UUID) -> RowFrameProbeSample? {
+        guard let indexPath = indexPathForItem(id: id) else { return nil }
+        let rowRect = tableView.rectForRow(at: indexPath)
+        let cell = tableView.cellForRow(at: indexPath)
+        let zPosition = cell?.layer.zPosition ?? 0
+        let siblingIndex = cell?.superview?.subviews.firstIndex(where: { $0 === cell }) ?? -1
+        return RowFrameProbeSample(
+            indexPath: indexPath,
+            minY: rowRect.minY,
+            maxY: rowRect.maxY,
+            height: rowRect.height,
+            zPosition: zPosition,
+            siblingIndex: siblingIndex,
+            isVisible: cell != nil
+        )
+    }
+
+    private func stackingRelation(
+        targetZ: CGFloat,
+        nextZ: CGFloat,
+        targetSiblingIndex: Int,
+        nextSiblingIndex: Int
+    ) -> String {
+        if targetZ > nextZ { return "target_above_next_by_z" }
+        if targetZ < nextZ { return "next_above_target_by_z" }
+        if targetSiblingIndex >= 0, nextSiblingIndex >= 0 {
+            if targetSiblingIndex > nextSiblingIndex { return "target_above_next_by_order" }
+            if targetSiblingIndex < nextSiblingIndex { return "next_above_target_by_order" }
+        }
+        return "same_layer_order_or_unknown"
+    }
+
+    private func beginSiblingProbeIfNeeded(targetID: UUID, direction: String, animationStart: TimeInterval) {
+        guard direction == "collapse" else { return }
+        guard let nextID = nextEntryID(after: targetID) else {
+            traceAnimation(
+                "probe.sibling.skip",
+                "target=\(targetID.uuidString) direction=\(direction) reason=no_immediate_next_row"
+            )
+            return
+        }
+        guard
+            let targetSample = rowFrameProbeSample(for: targetID),
+            let nextSample = rowFrameProbeSample(for: nextID)
+        else {
+            traceAnimation(
+                "probe.sibling.skip",
+                "target=\(targetID.uuidString) next=\(nextID.uuidString) direction=\(direction) reason=row_sample_unavailable"
+            )
+            return
+        }
+
+        siblingProbeSession += 1
+        let session = siblingProbeSession
+        let baselineGap = nextSample.minY - targetSample.maxY
+        let baselineStackRelation = stackingRelation(
+            targetZ: targetSample.zPosition,
+            nextZ: nextSample.zPosition,
+            targetSiblingIndex: targetSample.siblingIndex,
+            nextSiblingIndex: nextSample.siblingIndex
+        )
+        let state = SiblingProbeState(
+            session: session,
+            direction: direction,
+            transitionSequence: tableState.phaseProbeTransitionSequence,
+            targetID: targetID,
+            nextID: nextID,
+            targetRunOrdinal: tableState.phaseProbeRunOrdinal,
+            hasPriorEditForTarget: tableState.phaseProbeHasPriorEdit,
+            animationStartUptime: animationStart,
+            baselineTargetMinY: targetSample.minY,
+            baselineTargetHeight: targetSample.height,
+            baselineNextMinY: nextSample.minY,
+            baselineGap: baselineGap,
+            baselineStackRelation: baselineStackRelation,
+            lastTargetMinY: targetSample.minY,
+            lastTargetHeight: targetSample.height,
+            lastNextMinY: nextSample.minY,
+            lastStackRelation: baselineStackRelation,
+            sampleCount: 0,
+            stackRelationChangeCount: 0,
+            lastTargetOuterChangeUptime: nil,
+            firstNextTopMoveUptime: nil,
+            minGap: baselineGap,
+            maxOverlap: max(0, -baselineGap)
+        )
+        siblingProbeState = state
+        tableState.siblingProbeActive = true
+        tableState.siblingProbeTargetID = targetID
+        tableState.siblingProbeNextID = nextID
+        tableState.siblingProbeSession = session
+        traceAnimation(
+            "probe.sibling.begin",
+            "session=\(session) direction=\(direction) transitionSeq=\(state.transitionSequence) target=\(targetID.uuidString) next=\(nextID.uuidString) targetIndex=\(targetSample.indexPath.section):\(targetSample.indexPath.row) nextIndex=\(nextSample.indexPath.section):\(nextSample.indexPath.row) targetRunOrdinal=\(state.targetRunOrdinal) hasPriorEditForTarget=\(state.hasPriorEditForTarget) baselineTargetMinY=\(String(format: "%.3f", targetSample.minY)) baselineTargetHeight=\(String(format: "%.3f", targetSample.height)) baselineNextMinY=\(String(format: "%.3f", nextSample.minY)) baselineGapY=\(String(format: "%.3f", baselineGap)) baselineTargetZ=\(String(format: "%.3f", targetSample.zPosition)) baselineNextZ=\(String(format: "%.3f", nextSample.zPosition)) baselineTargetOrder=\(targetSample.siblingIndex) baselineNextOrder=\(nextSample.siblingIndex) baselineStackRelation=\(baselineStackRelation) targetVisible=\(targetSample.isVisible) nextVisible=\(nextSample.isVisible)"
+        )
+        startSiblingProbeDisplayLink()
+    }
+
+    private func startSiblingProbeDisplayLink() {
+        siblingProbeDisplayLink?.invalidate()
+        let link = CADisplayLink(target: self, selector: #selector(sampleSiblingProbe))
+        link.add(to: .main, forMode: .common)
+        siblingProbeDisplayLink = link
+    }
+
+    private func stopSiblingProbeDisplayLink() {
+        siblingProbeDisplayLink?.invalidate()
+        siblingProbeDisplayLink = nil
+    }
+
+    @objc private func sampleSiblingProbe() {
+        guard var state = siblingProbeState else { return }
+        guard
+            let targetSample = rowFrameProbeSample(for: state.targetID),
+            let nextSample = rowFrameProbeSample(for: state.nextID)
+        else {
+            return
+        }
+        state.sampleCount += 1
+        let now = ProcessInfo.processInfo.systemUptime
+        let targetOuterChanged =
+            abs(targetSample.minY - state.lastTargetMinY) > siblingProbeEpsilon
+            || abs(targetSample.height - state.lastTargetHeight) > siblingProbeEpsilon
+        if targetOuterChanged {
+            state.lastTargetOuterChangeUptime = now
+        }
+        let nextMovedFromBaseline =
+            abs(nextSample.minY - state.baselineNextMinY) > siblingProbeEpsilon
+        if nextMovedFromBaseline, state.firstNextTopMoveUptime == nil {
+            state.firstNextTopMoveUptime = now
+            let targetSettleOffsetMs = state.lastTargetOuterChangeUptime.map {
+                String(format: "%.3f", ($0 - state.animationStartUptime) * 1000)
+            } ?? "nil"
+            traceAnimation(
+                "probe.sibling.nextTopFirstMove",
+                "session=\(state.session) sample=\(state.sampleCount) target=\(state.targetID.uuidString) next=\(state.nextID.uuidString) firstMoveOffsetMs=\(String(format: "%.3f", (now - state.animationStartUptime) * 1000)) targetSettleOffsetMs=\(targetSettleOffsetMs) nextMinYShiftFromStart=\(String(format: "%.3f", nextSample.minY - state.baselineNextMinY))"
+            )
+        }
+        let gap = nextSample.minY - targetSample.maxY
+        state.minGap = min(state.minGap, gap)
+        state.maxOverlap = max(state.maxOverlap, max(0, -gap))
+        let stackRelation = stackingRelation(
+            targetZ: targetSample.zPosition,
+            nextZ: nextSample.zPosition,
+            targetSiblingIndex: targetSample.siblingIndex,
+            nextSiblingIndex: nextSample.siblingIndex
+        )
+        if stackRelation != state.lastStackRelation {
+            state.stackRelationChangeCount += 1
+            traceAnimation(
+                "probe.sibling.stackChanged",
+                "session=\(state.session) sample=\(state.sampleCount) target=\(state.targetID.uuidString) next=\(state.nextID.uuidString) previousStackRelation=\(state.lastStackRelation) newStackRelation=\(stackRelation) targetZ=\(String(format: "%.3f", targetSample.zPosition)) nextZ=\(String(format: "%.3f", nextSample.zPosition)) targetOrder=\(targetSample.siblingIndex) nextOrder=\(nextSample.siblingIndex)"
+            )
+            state.lastStackRelation = stackRelation
+        }
+
+        state.lastTargetMinY = targetSample.minY
+        state.lastTargetHeight = targetSample.height
+        state.lastNextMinY = nextSample.minY
+        siblingProbeState = state
+    }
+
+    private func finishSiblingProbe(animationEnd: TimeInterval) {
+        stopSiblingProbeDisplayLink()
+        guard let state = siblingProbeState else {
+            tableState.siblingProbeActive = false
+            tableState.siblingProbeTargetID = nil
+            tableState.siblingProbeNextID = nil
+            return
+        }
+        let settleUptime = state.lastTargetOuterChangeUptime ?? animationEnd
+        let nextMoveUptime = state.firstNextTopMoveUptime
+        let motionRelation: String
+        let nextMoveToSettleDeltaMs: String
+        if let nextMoveUptime {
+            let deltaMs = (nextMoveUptime - settleUptime) * 1000
+            nextMoveToSettleDeltaMs = String(format: "%.3f", deltaMs)
+            if abs(deltaMs) <= 12 {
+                motionRelation = "with"
+            } else if deltaMs < 0 {
+                motionRelation = "before"
+            } else {
+                motionRelation = "after"
+            }
+        } else {
+            motionRelation = "no_next_move_detected"
+            nextMoveToSettleDeltaMs = "nil"
+        }
+        let targetShift = state.lastTargetMinY - state.baselineTargetMinY
+        let targetHeightShift = state.lastTargetHeight - state.baselineTargetHeight
+        let nextShift = state.lastNextMinY - state.baselineNextMinY
+        traceAnimation(
+            "probe.sibling.end",
+            "session=\(state.session) direction=\(state.direction) transitionSeq=\(state.transitionSequence) samples=\(state.sampleCount) target=\(state.targetID.uuidString) next=\(state.nextID.uuidString) targetRunOrdinal=\(state.targetRunOrdinal) hasPriorEditForTarget=\(state.hasPriorEditForTarget) nextTopMoveRelativeToTargetOuterSettle=\(motionRelation) nextMoveToSettleDeltaMs=\(nextMoveToSettleDeltaMs) settleOffsetMs=\(String(format: "%.3f", (settleUptime - state.animationStartUptime) * 1000)) nextFirstMoveOffsetMs=\(nextMoveUptime.map { String(format: "%.3f", ($0 - state.animationStartUptime) * 1000) } ?? "nil") targetMinYShiftFromStart=\(String(format: "%.3f", targetShift)) targetHeightShiftFromStart=\(String(format: "%.3f", targetHeightShift)) nextMinYShiftFromStart=\(String(format: "%.3f", nextShift)) baselineGapY=\(String(format: "%.3f", state.baselineGap)) minGapY=\(String(format: "%.3f", state.minGap)) maxOverlapY=\(String(format: "%.3f", state.maxOverlap)) baselineStackRelation=\(state.baselineStackRelation) finalStackRelation=\(state.lastStackRelation) stackRelationChangeCount=\(state.stackRelationChangeCount)"
+        )
+        siblingProbeState = nil
+        tableState.siblingProbeActive = false
+        tableState.siblingProbeTargetID = nil
+        tableState.siblingProbeNextID = nil
     }
 
     private func captureScrollAnchor(for affectedIDs: [UUID]) -> ScrollAnchor? {
@@ -822,6 +1139,20 @@ final class TableState: ObservableObject {
     @Published var topEdgeProbeActive: Bool = false
     @Published var topEdgeProbeSession: Int = 0
     @Published var topEdgeProbeDirection: String = "none"
+    @Published var phaseProbeTargetID: UUID? = nil
+    @Published var phaseProbeTransitionSequence: Int = -1
+    @Published var phaseProbeDirection: String = "none"
+    @Published var phaseProbeRunOrdinal: Int = 0
+    @Published var phaseProbePreviousDirection: String = "none"
+    @Published var phaseProbePreviousTransitionSequence: Int = -1
+    @Published var phaseProbePriorEditSequence: Int = -1
+    @Published var phaseProbeHasPriorEdit: Bool = false
+    @Published var phaseProbeEditDelta: Int = -1
+    @Published var phaseProbeEditActiveForTarget: Bool = false
+    @Published var siblingProbeActive: Bool = false
+    @Published var siblingProbeTargetID: UUID? = nil
+    @Published var siblingProbeNextID: UUID? = nil
+    @Published var siblingProbeSession: Int = 0
     var layoutPassID: Int = 0
     var precomputedHeights: [UUID: CGFloat] = [:]
 
@@ -1034,6 +1365,13 @@ struct LogRowHostedView: View {
                         transactionDisablesAnimations: transactionDisablesAnimations,
                         inheritedAnimationDuration: inheritedAnimationDuration,
                         inheritedAnimationsEnabled: inheritedAnimationsEnabled
+                    )
+                },
+                onLocalStateSnapshot: { reason, detailPresenceValue, intrinsicHeight, visibleHeight in
+                    let detailPresence = detailPresenceValue.map(formatted) ?? "nil"
+                    traceHostedRow(
+                        "swiftui.row.localStateProbe.sample",
+                        "\(renderIdentity) rowToken=\(probeRowToken) reason=\(reason) detailPresenceState=\(detailPresence) detailIntrinsicHeight=\(formatted(intrinsicHeight)) detailVisibleHeight=\(formatted(visibleHeight)) phaseTransitionSeq=\(tableState.phaseProbeTransitionSequence) phaseDirection=\(tableState.phaseProbeDirection) phaseRunOrdinal=\(tableState.phaseProbeRunOrdinal) phasePreviousDirection=\(tableState.phaseProbePreviousDirection) phasePriorEditSeq=\(tableState.phaseProbePriorEditSequence) phaseHasPriorEdit=\(tableState.phaseProbeHasPriorEdit) phaseEditDelta=\(tableState.phaseProbeEditDelta) phaseEditActiveForTarget=\(tableState.phaseProbeEditActiveForTarget) phaseTargeted=\(tableState.phaseProbeTargetID == log.id)"
                     )
                 },
                 geometryCoordinateSpaceName: probeGeometryCoordinateSpaceName
@@ -1266,7 +1604,7 @@ struct LogRowHostedView: View {
         probeDetailPhaseSample += 1
         traceHostedRow(
             "swiftui.row.detailPhaseProbe.sample",
-            "\(renderIdentity) probeSample=\(probeDetailPhaseSample) rowToken=\(probeRowToken) transitionDirection=\(transitionDirection) detailPhase=\(detailPhase) isExpanded=\(isExpanded) isHeightAnimating=\(isHeightAnimating) detailFrameHeightParam=\(frameHeight) detailVisibilityGateOpen=\(gateOpen) detailTargetOpacity=\(targetOpacity) collapseProbeActive=\(collapseProbeActive) collapseProbeTargeted=\(collapseProbeTargeted) targetID=\(logID.uuidString)"
+            "\(renderIdentity) probeSample=\(probeDetailPhaseSample) rowToken=\(probeRowToken) transitionDirection=\(transitionDirection) detailPhase=\(detailPhase) isExpanded=\(isExpanded) isHeightAnimating=\(isHeightAnimating) detailFrameHeightParam=\(frameHeight) detailVisibilityGateOpen=\(gateOpen) detailTargetOpacity=\(targetOpacity) collapseProbeActive=\(collapseProbeActive) collapseProbeTargeted=\(collapseProbeTargeted) \(phaseProbeContext(logID: logID)) \(siblingProbeContext(logID: logID)) targetID=\(logID.uuidString)"
         )
     }
 
@@ -1425,7 +1763,7 @@ struct LogRowHostedView: View {
         probeTopEdgeSample += 1
         captureTopEdgeBeginReplayMessageIfNeeded(logID: logID)
         let sampleMessage =
-            "\(renderIdentity) probeSession=\(tableState.topEdgeProbeSession) probeSample=\(probeTopEdgeSample) probeSampleLimit=\(topEdgeProbeMaxSamples) rowToken=\(probeRowToken) coordinateSpace=rowLocal direction=\(direction) trigger=\(probeGeometryTrigger) rowMinY=\(rowMinY) cardOuterMinY=\(cardOuterMinY) cardBorderMinY=\(cardBorderMinY) cardVisibleTopEdgeMinY=\(cardVisibleTopEdgeMinY) cardTopContainerMinY=\(cardTopContainerMinY) cardOuterHeight=\(cardOuterHeight) detailVisibleHeight=\(detailVisibleHeight) rowToCardOuterTopDeltaY=\(rowToCardOuterTopDelta) outerToBorderTopDeltaY=\(outerToBorderTopDelta) visibleTopEdgeToOuterTopDeltaY=\(visibleTopEdgeToOuterTopDelta) visibleTopEdgeToBorderTopDeltaY=\(visibleTopEdgeToBorderTopDelta) visibleTopEdgeToTopContainerTopDeltaY=\(visibleTopEdgeToTopContainerTopDelta) outerToTopContainerTopDeltaY=\(outerToTopContainerTopDelta) rowMinYShiftFromStart=\(rowShift) cardOuterMinYShiftFromStart=\(cardOuterShift) cardBorderMinYShiftFromStart=\(cardBorderShift) cardVisibleTopEdgeMinYShiftFromStart=\(cardVisibleTopEdgeShift) cardTopContainerMinYShiftFromStart=\(cardTopContainerShift) cardOuterHeightShiftFromStart=\(cardOuterHeightShift) detailVisibleHeightShiftFromStart=\(detailVisibleHeightShift) topEdgeMovedBeforeHeightSettles=\(topEdgeMovedBeforeHeightSettles) targetID=\(logID.uuidString)"
+            "\(renderIdentity) probeSession=\(tableState.topEdgeProbeSession) probeSample=\(probeTopEdgeSample) probeSampleLimit=\(topEdgeProbeMaxSamples) rowToken=\(probeRowToken) coordinateSpace=rowLocal direction=\(direction) trigger=\(probeGeometryTrigger) rowMinY=\(rowMinY) cardOuterMinY=\(cardOuterMinY) cardBorderMinY=\(cardBorderMinY) cardVisibleTopEdgeMinY=\(cardVisibleTopEdgeMinY) cardTopContainerMinY=\(cardTopContainerMinY) cardOuterHeight=\(cardOuterHeight) detailVisibleHeight=\(detailVisibleHeight) rowToCardOuterTopDeltaY=\(rowToCardOuterTopDelta) outerToBorderTopDeltaY=\(outerToBorderTopDelta) visibleTopEdgeToOuterTopDeltaY=\(visibleTopEdgeToOuterTopDelta) visibleTopEdgeToBorderTopDeltaY=\(visibleTopEdgeToBorderTopDelta) visibleTopEdgeToTopContainerTopDeltaY=\(visibleTopEdgeToTopContainerTopDelta) outerToTopContainerTopDeltaY=\(outerToTopContainerTopDelta) rowMinYShiftFromStart=\(rowShift) cardOuterMinYShiftFromStart=\(cardOuterShift) cardBorderMinYShiftFromStart=\(cardBorderShift) cardVisibleTopEdgeMinYShiftFromStart=\(cardVisibleTopEdgeShift) cardTopContainerMinYShiftFromStart=\(cardTopContainerShift) cardOuterHeightShiftFromStart=\(cardOuterHeightShift) detailVisibleHeightShiftFromStart=\(detailVisibleHeightShift) topEdgeMovedBeforeHeightSettles=\(topEdgeMovedBeforeHeightSettles) \(phaseProbeContext(logID: logID)) \(siblingProbeContext(logID: logID)) targetID=\(logID.uuidString)"
         if probeTopEdgeEarlySampleMessages.count < topEdgeProbeReplaySampleCount {
             probeTopEdgeEarlySampleMessages.append(sampleMessage)
         }
@@ -1454,6 +1792,16 @@ struct LogRowHostedView: View {
         probeTopEdgeReplayTargetID = nil
         probeTopEdgeBeginReplayMessage = nil
         probeTopEdgeEarlySampleMessages = []
+    }
+
+    private func phaseProbeContext(logID: UUID) -> String {
+        let targeted = tableState.phaseProbeTargetID == logID
+        return "phaseTargeted=\(targeted) phaseTransitionSeq=\(tableState.phaseProbeTransitionSequence) phaseDirection=\(tableState.phaseProbeDirection) phaseRunOrdinal=\(tableState.phaseProbeRunOrdinal) phasePreviousDirection=\(tableState.phaseProbePreviousDirection) phasePreviousTransitionSeq=\(tableState.phaseProbePreviousTransitionSequence) phasePriorEditSeq=\(tableState.phaseProbePriorEditSequence) phaseHasPriorEdit=\(tableState.phaseProbeHasPriorEdit) phaseEditDelta=\(tableState.phaseProbeEditDelta) phaseEditActiveForTarget=\(tableState.phaseProbeEditActiveForTarget)"
+    }
+
+    private func siblingProbeContext(logID: UUID) -> String {
+        let targetMatch = tableState.siblingProbeTargetID == logID
+        return "siblingProbeActive=\(tableState.siblingProbeActive) siblingProbeSession=\(tableState.siblingProbeSession) siblingProbeTargeted=\(targetMatch) siblingProbeTargetID=\(tableState.siblingProbeTargetID?.uuidString ?? "nil") siblingProbeNextID=\(tableState.siblingProbeNextID?.uuidString ?? "nil")"
     }
 
     private func shouldEmitDetailProbeSample(sampleIndex: Int, progress: CGFloat) -> Bool {
@@ -1611,6 +1959,7 @@ private struct LogRowCardView: View {
     let onBelowBoundaryChildFrameChange: (CGRect) -> Void
     let onDetailHeightChange: (CGFloat) -> Void
     let onDetailOpacityAnimatableSample: (CGFloat, CGFloat, CGFloat, Bool, CGFloat?, CGFloat, CGFloat, Bool, CGFloat, Bool) -> Void
+    let onLocalStateSnapshot: (String, CGFloat?, CGFloat, CGFloat) -> Void
     let geometryCoordinateSpaceName: String
 
     @Environment(\.colorScheme) private var colorScheme
@@ -1829,14 +2178,46 @@ private struct LogRowCardView: View {
             if detailPresence == nil {
                 detailPresence = isExpanded ? 1 : 0
             }
+            onLocalStateSnapshot(
+                "onAppear",
+                detailPresence,
+                detailIntrinsicHeight,
+                detailVisibleHeight
+            )
         }
         .onChange(of: log.id) { _, _ in
             detailPresence = isExpanded ? 1 : 0
+            onLocalStateSnapshot(
+                "logIDChanged",
+                detailPresence,
+                detailIntrinsicHeight,
+                detailVisibleHeight
+            )
         }
         .onChange(of: isExpanded) { _, newValue in
+            onLocalStateSnapshot(
+                "isExpandedChanged.before.new=\(newValue)",
+                detailPresence,
+                detailIntrinsicHeight,
+                detailVisibleHeight
+            )
             withAnimation(.easeInOut(duration: 0.25)) {
                 detailPresence = newValue ? 1 : 0
             }
+            onLocalStateSnapshot(
+                "isExpandedChanged.after.new=\(newValue)",
+                detailPresence,
+                detailIntrinsicHeight,
+                detailVisibleHeight
+            )
+        }
+        .onChange(of: isEditing) { _, newValue in
+            onLocalStateSnapshot(
+                "isEditingChanged.new=\(newValue)",
+                detailPresence,
+                detailIntrinsicHeight,
+                detailVisibleHeight
+            )
         }
     }
 

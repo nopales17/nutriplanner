@@ -1,0 +1,31 @@
+{
+  "incident_id": "incident-20260313-084132",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "subsystem_candidates": [
+      "LogsTableViewController estimate-row render path (row-local phase ownership)",
+      "LogsTableViewController immediate sibling row interaction (next-card motion/stacking)"
+    ],
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "User-observed sequence dependence (edit-first vs expand-first and first-run vs repeat-run) suggests potential ownership path warm-up between edit and expand/collapse phases.",
+          "Current incident tails preserve collapse-phase probes but do not carry explicit prior-flow ownership markers, so phase inheritance across edit->collapse cannot be confirmed or excluded."
+        ],
+        "contradicting_evidence": [
+          "Latest incident breadcrumbs still show coherent expand/collapse state completion events without direct evidence of stale business state channels."
+        ],
+        "missing_evidence": [
+          "Per-row persistent flow markers showing whether an edit flow preceded the sampled collapse and whether ownership/phase signals differ on first collapse after edit.",
+          "Immediate sibling geometry/stack signals capturing when next-card top edge moves relative to collapsing card outer-frame settle time."
+        ],
+        "next_discriminating_check": "Add narrow estimate-row instrumentation that (1) stamps edit->collapse sequence ownership for the same row token and (2) logs collapsing-row vs immediate-next-row top-edge/z-order timing in row-local space."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "Two coupled frontiers are plausible: sequence-dependent phase ownership and immediate sibling motion/stacking artifact.",
+      "first_diverging_owner": "undetermined"
+    }
+  }
+}
