@@ -1,0 +1,24 @@
+{
+  "incident_id": "incident-20260313-062721",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Row-local seam relations remain coherent during collapse (`firstChildToDetailDeltaY=12.000`, `belowChildToFirstChildDeltaY=34.333`) and do not exhibit prior global-coordinate spikes.",
+          "Collapse lifecycle completes normally (`probe.collapse.end`, `animation.complete`) with `expanded=false` and `animating` toggling off as expected."
+        ],
+        "contradicting_evidence": [
+          "No incident evidence indicates tentative-vs-committed app state mismatch or stale business-state reads.",
+          "Visible symptom persists after seam-owner hypothesis is deprioritized and row/table movement artifact is removed from the active frontier."
+        ],
+        "missing_evidence": [
+          "A direct render-layer sample proving whether border/detail layers snap at compositing time while row-local layout deltas remain stable.",
+          "A per-frame correlation between detail clip/opacity presentation values and observed pink-border/detail visual snap."
+        ],
+        "next_discriminating_check": "During one collapse, sample presentation-layer values for the detail clipping container and border stroke host (opacity, bounds.height, position.y) and compare against row-local seam deltas in the same session to confirm render/compositing snap versus layout incoherence."
+      }
+    ]
+  }
+}

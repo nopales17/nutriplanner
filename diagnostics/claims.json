@@ -295,6 +295,17 @@
       "checked_at": "2026-03-13"
     },
     {
+      "id": "estimate-row-seam-deltas-stable-while-visual-snap-persists",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "With row-local seam probes active, collapse can still show a visible snap while seam guardrails (`firstChildToDetailDeltaY`, `belowChildToFirstChildDeltaY`) remain stable; this shifts the active frontier from seam-owner layout coherence to rendered detail/border compositing behavior.",
+      "files": [
+        "LogsTableViewController.swift",
+        "diagnostics/incidents/incident-20260313-062721.md"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
       "id": "nutriplanner-sync-root-copies-placeholder-resources",
       "status": "supported",
       "subsystem": "build-resources",
