@@ -30,6 +30,9 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private var isCollapsingAnimation = false
     private var collapseProbeTargetID: UUID?
     private var collapseProbeSession: Int = 0
+    private var topEdgeProbeTargetID: UUID?
+    private var topEdgeProbeSession: Int = 0
+    private var topEdgeProbeDirection: String = "none"
     private var animationTraceSequence: Int = 0
 
     private var onDelete: ((UUID) -> Void)?
@@ -270,6 +273,32 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                 "session=\(collapseProbeSession) target=\(oldExpandedID.uuidString) oldExpanded=\(formattedID(oldExpandedID)) newExpanded=\(formattedID(payload.expandedID))"
             )
         }
+        if expandedChanged {
+            let direction: String
+            switch (oldExpandedID, payload.expandedID) {
+            case (.some, nil):
+                direction = "collapse"
+            case (nil, .some):
+                direction = "expand"
+            case (.some, .some):
+                direction = "switch"
+            case (nil, nil):
+                direction = "none"
+            }
+            let targetID = payload.expandedID ?? oldExpandedID
+            topEdgeProbeDirection = direction
+            topEdgeProbeTargetID = targetID
+            if let targetID {
+                topEdgeProbeSession += 1
+                tableState.topEdgeProbeTargetID = targetID
+                tableState.topEdgeProbeSession = topEdgeProbeSession
+                tableState.topEdgeProbeDirection = direction
+                traceAnimation(
+                    "probe.topEdge.arm",
+                    "session=\(topEdgeProbeSession) direction=\(direction) target=\(targetID.uuidString) oldExpanded=\(formattedID(oldExpandedID)) newExpanded=\(formattedID(payload.expandedID))"
+                )
+            }
+        }
 
         let previousSectionIDs = previousSections.map(\.id)
         let newSectionIDs = payload.sections.map(\.id)
@@ -374,6 +403,19 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         } else {
             tableState.collapseProbeActive = false
         }
+        let topEdgeProbeIsActive = topEdgeProbeTargetID.map { affectedIDs.contains($0) } == true
+        if topEdgeProbeIsActive, let target = topEdgeProbeTargetID {
+            tableState.topEdgeProbeActive = true
+            tableState.topEdgeProbeTargetID = target
+            tableState.topEdgeProbeSession = topEdgeProbeSession
+            tableState.topEdgeProbeDirection = topEdgeProbeDirection
+            traceAnimation(
+                "probe.topEdge.begin",
+                "session=\(topEdgeProbeSession) direction=\(topEdgeProbeDirection) target=\(target.uuidString) affected=\(affectedIDs.map { $0.uuidString })"
+            )
+        } else {
+            tableState.topEdgeProbeActive = false
+        }
         traceAnimation(
             "animation.start",
             "affected=\(affectedIDs.map { $0.uuidString }) expanded=\(formattedID(expandedID)) editing=\(formattedID(editingID)) targetMap=\(affectedIDs.map { "\($0.uuidString)->\(String(describing: indexPathForItem(id: $0)))" }) anchor=\(describe(anchor))"
@@ -432,9 +474,19 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                     "session=\(self.collapseProbeSession) target=\(self.formattedID(self.collapseProbeTargetID)) elapsed=\(String(format: "%.6f", ProcessInfo.processInfo.systemUptime - animationStart))"
                 )
             }
+            if self.tableState.topEdgeProbeActive {
+                self.traceAnimation(
+                    "probe.topEdge.end",
+                    "session=\(self.topEdgeProbeSession) direction=\(self.topEdgeProbeDirection) target=\(self.formattedID(self.topEdgeProbeTargetID)) elapsed=\(String(format: "%.6f", ProcessInfo.processInfo.systemUptime - animationStart))"
+                )
+            }
             self.tableState.collapseProbeActive = false
             self.tableState.collapseProbeTargetID = nil
             self.collapseProbeTargetID = nil
+            self.tableState.topEdgeProbeActive = false
+            self.tableState.topEdgeProbeTargetID = nil
+            self.topEdgeProbeTargetID = nil
+            self.topEdgeProbeDirection = "none"
             if !self.pendingAffectedIDs.isEmpty {
                 self.debugLog("queued animation detected, restarting")
                 self.scheduleHeightAnimation(affectedIDs: [])
@@ -455,6 +507,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         heightAnimator = nil
         isAnimatingHeight = false
         tableState.collapseProbeActive = false
+        tableState.topEdgeProbeActive = false
         debugLog("finishHeightAnimation")
     }
 
@@ -765,6 +818,10 @@ final class TableState: ObservableObject {
     @Published var collapseProbeTargetID: UUID? = nil
     @Published var collapseProbeActive: Bool = false
     @Published var collapseProbeSession: Int = 0
+    @Published var topEdgeProbeTargetID: UUID? = nil
+    @Published var topEdgeProbeActive: Bool = false
+    @Published var topEdgeProbeSession: Int = 0
+    @Published var topEdgeProbeDirection: String = "none"
     var layoutPassID: Int = 0
     var precomputedHeights: [UUID: CGFloat] = [:]
 
@@ -783,6 +840,8 @@ struct LogRowHostedView: View {
     @ObservedObject var idBox: RowIDBox
     @EnvironmentObject var tableState: TableState
     @State private var probeCardFrame: CGRect = .zero
+    @State private var probeCardBorderFrame: CGRect = .zero
+    @State private var probeCardTopContainerFrame: CGRect = .zero
     @State private var probeRowContainerFrame: CGRect = .zero
     @State private var probeDetailRegionFrame: CGRect = .zero
     @State private var probeBoundaryFirstChildFrame: CGRect = .zero
@@ -800,8 +859,18 @@ struct LogRowHostedView: View {
     @State private var probeGeometryTriggerInheritedAnimationDuration: CGFloat = 0
     @State private var probeGeometryTriggerAnimationsEnabled: Bool = true
     @State private var probeRowToken: String = UUID().uuidString
+    @State private var probeTopEdgeSample: Int = 0
+    @State private var probeTopEdgeLastSignature: String = ""
+    @State private var probeTopEdgeBaselineRowMinY: CGFloat? = nil
+    @State private var probeTopEdgeBaselineCardOuterMinY: CGFloat? = nil
+    @State private var probeTopEdgeBaselineCardBorderMinY: CGFloat? = nil
+    @State private var probeTopEdgeBaselineCardTopContainerMinY: CGFloat? = nil
+    @State private var probeTopEdgeBaselineCardOuterHeight: CGFloat? = nil
+    @State private var probeTopEdgeBaselineDetailVisibleHeight: CGFloat? = nil
     private let detailProbeSampleStride: Int = 4
     private let detailProbeTerminalThreshold: CGFloat = 0.02
+    private let topEdgeProbeMaxSamples: Int = 8
+    private let topEdgeStableEpsilon: CGFloat = 0.5
     private var probeGeometryCoordinateSpaceName: String {
         "log-row-probe-\(probeRowToken)"
     }
@@ -834,12 +903,36 @@ struct LogRowHostedView: View {
                 onCancelEdit: { tableState.onCancelEdit() },
                 onUpdate: { tableState.onUpdate(log.id, tableState.draftMeal) },
                 onCardFrameChange: { frame in
+                    updateGeometryTrigger("cardOuterFrame")
                     probeCardFrame = frame
                     traceCollapseBorderSample(
                         logID: log.id,
                         renderIdentity: renderIdentity,
                         isExpanded: isExpanded,
                         isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                    traceTopEdgeAnchorSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onCardBorderFrameChange: { frame in
+                    updateGeometryTrigger("cardBorderFrame")
+                    probeCardBorderFrame = frame
+                    traceTopEdgeAnchorSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onCardTopContainerFrameChange: { frame in
+                    updateGeometryTrigger("cardTopContainerFrame")
+                    probeCardTopContainerFrame = frame
+                    traceTopEdgeAnchorSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
                         isHeightAnimating: isHeightAnimating
                     )
                 },
@@ -893,6 +986,11 @@ struct LogRowHostedView: View {
                         isEditing: isEditing,
                         isHeightAnimating: isHeightAnimating
                     )
+                    traceTopEdgeAnchorSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
                 },
                 onDetailOpacityAnimatableSample: { rawOpacity, renderedOpacity, targetOpacity, visibilityGateOpen, frameHeightParam, intrinsicDetailHeight, visibleDetailHeight, transactionDisablesAnimations, inheritedAnimationDuration, inheritedAnimationsEnabled in
                     traceDetailPhaseSample(
@@ -938,6 +1036,11 @@ struct LogRowHostedView: View {
                                 isEditing: isEditing,
                                 isHeightAnimating: isHeightAnimating
                             )
+                            traceTopEdgeAnchorSample(
+                                logID: log.id,
+                                renderIdentity: renderIdentity,
+                                isHeightAnimating: isHeightAnimating
+                            )
                         }
                         .onChange(of: proxy.frame(in: .named(probeGeometryCoordinateSpaceName))) { _, newFrame in
                             updateGeometryTrigger("rowContainerFrame")
@@ -947,6 +1050,11 @@ struct LogRowHostedView: View {
                                 renderIdentity: renderIdentity,
                                 isExpanded: isExpanded,
                                 isEditing: isEditing,
+                                isHeightAnimating: isHeightAnimating
+                            )
+                            traceTopEdgeAnchorSample(
+                                logID: log.id,
+                                renderIdentity: renderIdentity,
                                 isHeightAnimating: isHeightAnimating
                             )
                         }
@@ -983,11 +1091,26 @@ struct LogRowHostedView: View {
                 probeGeometryScopeSample = 0
                 probeGeometryScopeLastSignature = ""
             }
+            .onChange(of: tableState.topEdgeProbeSession) { _, _ in
+                probeTopEdgeSample = 0
+                probeTopEdgeLastSignature = ""
+                probeTopEdgeBaselineRowMinY = nil
+                probeTopEdgeBaselineCardOuterMinY = nil
+                probeTopEdgeBaselineCardBorderMinY = nil
+                probeTopEdgeBaselineCardTopContainerMinY = nil
+                probeTopEdgeBaselineCardOuterHeight = nil
+                probeTopEdgeBaselineDetailVisibleHeight = nil
+            }
             .onChange(of: tableState.collapseProbeActive) { _, isActive in
                 if !isActive {
                     probeLastSignature = ""
                     probeDetailOpacityLastSignature = ""
                     probeDetailPhaseLastSignature = ""
+                }
+            }
+            .onChange(of: tableState.topEdgeProbeActive) { _, isActive in
+                if !isActive {
+                    probeTopEdgeLastSignature = ""
                 }
             }
         } else {
@@ -1196,6 +1319,79 @@ struct LogRowHostedView: View {
         )
     }
 
+    private func traceTopEdgeAnchorSample(
+        logID: UUID,
+        renderIdentity: String,
+        isHeightAnimating: Bool
+    ) {
+        guard tableState.topEdgeProbeActive else { return }
+        guard tableState.topEdgeProbeTargetID == logID else { return }
+        guard isHeightAnimating else { return }
+        guard probeTopEdgeSample < topEdgeProbeMaxSamples else { return }
+        guard probeCardFrame.height > 0 else { return }
+
+        let rowMinYValue = probeRowContainerFrame.minY
+        let cardOuterMinYValue = probeCardFrame.minY
+        let cardBorderMinYValue = probeCardBorderFrame.minY
+        let cardTopContainerMinYValue = probeCardTopContainerFrame.minY
+        let cardOuterHeightValue = probeCardFrame.height
+        let detailVisibleHeightValue = probeDetailVisibleHeight
+
+        if probeTopEdgeBaselineRowMinY == nil {
+            probeTopEdgeBaselineRowMinY = rowMinYValue
+            probeTopEdgeBaselineCardOuterMinY = cardOuterMinYValue
+            probeTopEdgeBaselineCardBorderMinY = cardBorderMinYValue
+            probeTopEdgeBaselineCardTopContainerMinY = cardTopContainerMinYValue
+            probeTopEdgeBaselineCardOuterHeight = cardOuterHeightValue
+            probeTopEdgeBaselineDetailVisibleHeight = detailVisibleHeightValue
+        }
+
+        let baselineRowMinY = probeTopEdgeBaselineRowMinY ?? rowMinYValue
+        let baselineCardOuterMinY = probeTopEdgeBaselineCardOuterMinY ?? cardOuterMinYValue
+        let baselineCardBorderMinY = probeTopEdgeBaselineCardBorderMinY ?? cardBorderMinYValue
+        let baselineCardTopContainerMinY = probeTopEdgeBaselineCardTopContainerMinY ?? cardTopContainerMinYValue
+        let baselineCardOuterHeight = probeTopEdgeBaselineCardOuterHeight ?? cardOuterHeightValue
+        let baselineDetailVisibleHeight = probeTopEdgeBaselineDetailVisibleHeight ?? detailVisibleHeightValue
+
+        let rowMinYShiftFromStart = rowMinYValue - baselineRowMinY
+        let cardOuterMinYShiftFromStart = cardOuterMinYValue - baselineCardOuterMinY
+        let cardBorderMinYShiftFromStart = cardBorderMinYValue - baselineCardBorderMinY
+        let cardTopContainerMinYShiftFromStart = cardTopContainerMinYValue - baselineCardTopContainerMinY
+        let cardOuterHeightShiftFromStart = cardOuterHeightValue - baselineCardOuterHeight
+        let detailVisibleHeightShiftFromStart = detailVisibleHeightValue - baselineDetailVisibleHeight
+
+        let rowMinY = formatted(rowMinYValue)
+        let cardOuterMinY = formatted(cardOuterMinYValue)
+        let cardBorderMinY = formatted(cardBorderMinYValue)
+        let cardTopContainerMinY = formatted(cardTopContainerMinYValue)
+        let cardOuterHeight = formatted(cardOuterHeightValue)
+        let detailVisibleHeight = formatted(detailVisibleHeightValue)
+        let rowToCardOuterTopDelta = formatted(cardOuterMinYValue - rowMinYValue)
+        let outerToBorderTopDelta = formatted(cardBorderMinYValue - cardOuterMinYValue)
+        let outerToTopContainerTopDelta = formatted(cardTopContainerMinYValue - cardOuterMinYValue)
+        let rowShift = formatted(rowMinYShiftFromStart)
+        let cardOuterShift = formatted(cardOuterMinYShiftFromStart)
+        let cardBorderShift = formatted(cardBorderMinYShiftFromStart)
+        let cardTopContainerShift = formatted(cardTopContainerMinYShiftFromStart)
+        let cardOuterHeightShift = formatted(cardOuterHeightShiftFromStart)
+        let detailVisibleHeightShift = formatted(detailVisibleHeightShiftFromStart)
+        let topEdgeMovedBeforeHeightSettles =
+            abs(cardOuterMinYShiftFromStart) > topEdgeStableEpsilon
+            && abs(cardOuterHeightShiftFromStart) <= topEdgeStableEpsilon
+            ? "true"
+            : "false"
+        let direction = tableState.topEdgeProbeDirection
+        let signature = "\(rowMinY)|\(cardOuterMinY)|\(cardBorderMinY)|\(cardTopContainerMinY)|\(cardOuterHeight)|\(detailVisibleHeight)|\(rowShift)|\(cardOuterShift)|\(cardBorderShift)|\(cardTopContainerShift)|\(cardOuterHeightShift)|\(detailVisibleHeightShift)|\(direction)|\(probeGeometryTrigger)|\(tableState.layoutPassID)"
+        guard signature != probeTopEdgeLastSignature else { return }
+        probeTopEdgeLastSignature = signature
+        probeTopEdgeSample += 1
+
+        traceHostedRow(
+            "swiftui.row.topAnchorProbe.sample",
+            "\(renderIdentity) probeSession=\(tableState.topEdgeProbeSession) probeSample=\(probeTopEdgeSample) probeSampleLimit=\(topEdgeProbeMaxSamples) rowToken=\(probeRowToken) coordinateSpace=rowLocal direction=\(direction) trigger=\(probeGeometryTrigger) rowMinY=\(rowMinY) cardOuterMinY=\(cardOuterMinY) cardBorderMinY=\(cardBorderMinY) cardTopContainerMinY=\(cardTopContainerMinY) cardOuterHeight=\(cardOuterHeight) detailVisibleHeight=\(detailVisibleHeight) rowToCardOuterTopDeltaY=\(rowToCardOuterTopDelta) outerToBorderTopDeltaY=\(outerToBorderTopDelta) outerToTopContainerTopDeltaY=\(outerToTopContainerTopDelta) rowMinYShiftFromStart=\(rowShift) cardOuterMinYShiftFromStart=\(cardOuterShift) cardBorderMinYShiftFromStart=\(cardBorderShift) cardTopContainerMinYShiftFromStart=\(cardTopContainerShift) cardOuterHeightShiftFromStart=\(cardOuterHeightShift) detailVisibleHeightShiftFromStart=\(detailVisibleHeightShift) topEdgeMovedBeforeHeightSettles=\(topEdgeMovedBeforeHeightSettles) targetID=\(logID.uuidString)"
+        )
+    }
+
     private func shouldEmitDetailProbeSample(sampleIndex: Int, progress: CGFloat) -> Bool {
         if sampleIndex <= 2 { return true }
         if sampleIndex % detailProbeSampleStride == 0 { return true }
@@ -1343,6 +1539,8 @@ private struct LogRowCardView: View {
     let onCancelEdit: () -> Void
     let onUpdate: () -> Void
     let onCardFrameChange: (CGRect) -> Void
+    let onCardBorderFrameChange: (CGRect) -> Void
+    let onCardTopContainerFrameChange: (CGRect) -> Void
     let onDetailRegionFrameChange: (CGRect) -> Void
     let onBoundaryFirstChildFrameChange: (CGRect) -> Void
     let onBelowBoundaryChildFrameChange: (CGRect) -> Void
@@ -1402,6 +1600,17 @@ private struct LogRowCardView: View {
 
         VStack(spacing: 0) {
             editableHeader
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                onCardTopContainerFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
+                            }
+                            .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
+                                onCardTopContainerFrameChange(newFrame)
+                            }
+                    }
+                )
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 10) {
@@ -1693,6 +1902,17 @@ private struct LogRowCardView: View {
                             ),
                         lineWidth: 1
                     )
+            )
+            .overlay(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear {
+                            onCardBorderFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
+                        }
+                        .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
+                            onCardBorderFrameChange(newFrame)
+                        }
+                }
             )
     }
 }
