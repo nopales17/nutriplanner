@@ -328,6 +328,17 @@
       "checked_at": "2026-03-13"
     },
     {
+      "id": "incident-export-retains-tail-50-breadcrumbs",
+      "status": "supported",
+      "subsystem": "diagnostics-export",
+      "statement": "Incident payloads currently retain only the newest 50 breadcrumbs; in high-volume animation traces this can evict transition-start lines (for example `probe.topEdge.begin` and early `swiftui.row.topAnchorProbe.sample`) while still retaining transition-end lines.",
+      "files": [
+        "diagnostics/inbox/incident-20260313-080127.json",
+        "LogsTableViewController.swift"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
       "id": "nutriplanner-sync-root-copies-placeholder-resources",
       "status": "supported",
       "subsystem": "build-resources",

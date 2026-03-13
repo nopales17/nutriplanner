@@ -1,0 +1,31 @@
+{
+  "incident_id": "incident-20260313-080127",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "subsystem_candidates": [
+      "LogsTableViewController top-edge probe instrumentation",
+      "incident breadcrumb tail retention (export keeps latest 50)"
+    ],
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Observed collapse-tail samples keep rowMinY stable while cardOuterMinY continues moving, consistent with a card-outer/top-edge owner in the visible window.",
+          "`probe.topEdge.end` is present for session 2 direction=collapse, proving top-edge probe activation reached completion."
+        ],
+        "contradicting_evidence": [
+          "The incident inbox JSON contains only 50 breadcrumbs, and the first retained breadcrumb is already `probeSample=18`, so transition-start lines are outside the retained tail.",
+          "`probe.topEdge.begin` and early `swiftui.row.topAnchorProbe.sample` lines are absent from retained breadcrumbs, so transition-start ownership is not directly proven."
+        ],
+        "missing_evidence": [
+          "A single clean run whose retained payload still includes `probe.topEdge.begin` and first 1-3 topAnchor samples with `cardTopContainerMinY`, `rowToCardOuterTopDeltaY`, and `topEdgeMovedBeforeHeightSettles`."
+        ],
+        "next_discriminating_check": "Apply a local top-edge-probe reliability change in LogsTableViewController to replay begin + first 1-3 top-anchor samples at probe end, then capture one clean collapse/expand run and verify those lines are retained."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "card outer/top border movement is independent of row top in observed collapse tail, but transition-start first mover is unresolved",
+      "first_diverging_owner": "card outer container (first observed in retained samples)"
+    }
+  }
+}

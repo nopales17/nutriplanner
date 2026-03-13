@@ -867,9 +867,13 @@ struct LogRowHostedView: View {
     @State private var probeTopEdgeBaselineCardTopContainerMinY: CGFloat? = nil
     @State private var probeTopEdgeBaselineCardOuterHeight: CGFloat? = nil
     @State private var probeTopEdgeBaselineDetailVisibleHeight: CGFloat? = nil
+    @State private var probeTopEdgeReplayTargetID: UUID? = nil
+    @State private var probeTopEdgeBeginReplayMessage: String? = nil
+    @State private var probeTopEdgeEarlySampleMessages: [String] = []
     private let detailProbeSampleStride: Int = 4
     private let detailProbeTerminalThreshold: CGFloat = 0.02
     private let topEdgeProbeMaxSamples: Int = 8
+    private let topEdgeProbeReplaySampleCount: Int = 3
     private let topEdgeStableEpsilon: CGFloat = 0.5
     private var probeGeometryCoordinateSpaceName: String {
         "log-row-probe-\(probeRowToken)"
@@ -1100,6 +1104,9 @@ struct LogRowHostedView: View {
                 probeTopEdgeBaselineCardTopContainerMinY = nil
                 probeTopEdgeBaselineCardOuterHeight = nil
                 probeTopEdgeBaselineDetailVisibleHeight = nil
+                probeTopEdgeReplayTargetID = nil
+                probeTopEdgeBeginReplayMessage = nil
+                probeTopEdgeEarlySampleMessages = []
             }
             .onChange(of: tableState.collapseProbeActive) { _, isActive in
                 if !isActive {
@@ -1109,9 +1116,12 @@ struct LogRowHostedView: View {
                 }
             }
             .onChange(of: tableState.topEdgeProbeActive) { _, isActive in
-                if !isActive {
-                    probeTopEdgeLastSignature = ""
+                if isActive {
+                    captureTopEdgeBeginReplayMessageIfNeeded(logID: log.id)
+                    return
                 }
+                emitTopEdgeReplayIfNeeded(logID: log.id)
+                probeTopEdgeLastSignature = ""
             }
         } else {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -1385,11 +1395,37 @@ struct LogRowHostedView: View {
         guard signature != probeTopEdgeLastSignature else { return }
         probeTopEdgeLastSignature = signature
         probeTopEdgeSample += 1
+        captureTopEdgeBeginReplayMessageIfNeeded(logID: logID)
+        let sampleMessage =
+            "\(renderIdentity) probeSession=\(tableState.topEdgeProbeSession) probeSample=\(probeTopEdgeSample) probeSampleLimit=\(topEdgeProbeMaxSamples) rowToken=\(probeRowToken) coordinateSpace=rowLocal direction=\(direction) trigger=\(probeGeometryTrigger) rowMinY=\(rowMinY) cardOuterMinY=\(cardOuterMinY) cardBorderMinY=\(cardBorderMinY) cardTopContainerMinY=\(cardTopContainerMinY) cardOuterHeight=\(cardOuterHeight) detailVisibleHeight=\(detailVisibleHeight) rowToCardOuterTopDeltaY=\(rowToCardOuterTopDelta) outerToBorderTopDeltaY=\(outerToBorderTopDelta) outerToTopContainerTopDeltaY=\(outerToTopContainerTopDelta) rowMinYShiftFromStart=\(rowShift) cardOuterMinYShiftFromStart=\(cardOuterShift) cardBorderMinYShiftFromStart=\(cardBorderShift) cardTopContainerMinYShiftFromStart=\(cardTopContainerShift) cardOuterHeightShiftFromStart=\(cardOuterHeightShift) detailVisibleHeightShiftFromStart=\(detailVisibleHeightShift) topEdgeMovedBeforeHeightSettles=\(topEdgeMovedBeforeHeightSettles) targetID=\(logID.uuidString)"
+        if probeTopEdgeEarlySampleMessages.count < topEdgeProbeReplaySampleCount {
+            probeTopEdgeEarlySampleMessages.append(sampleMessage)
+        }
 
         traceHostedRow(
             "swiftui.row.topAnchorProbe.sample",
-            "\(renderIdentity) probeSession=\(tableState.topEdgeProbeSession) probeSample=\(probeTopEdgeSample) probeSampleLimit=\(topEdgeProbeMaxSamples) rowToken=\(probeRowToken) coordinateSpace=rowLocal direction=\(direction) trigger=\(probeGeometryTrigger) rowMinY=\(rowMinY) cardOuterMinY=\(cardOuterMinY) cardBorderMinY=\(cardBorderMinY) cardTopContainerMinY=\(cardTopContainerMinY) cardOuterHeight=\(cardOuterHeight) detailVisibleHeight=\(detailVisibleHeight) rowToCardOuterTopDeltaY=\(rowToCardOuterTopDelta) outerToBorderTopDeltaY=\(outerToBorderTopDelta) outerToTopContainerTopDeltaY=\(outerToTopContainerTopDelta) rowMinYShiftFromStart=\(rowShift) cardOuterMinYShiftFromStart=\(cardOuterShift) cardBorderMinYShiftFromStart=\(cardBorderShift) cardTopContainerMinYShiftFromStart=\(cardTopContainerShift) cardOuterHeightShiftFromStart=\(cardOuterHeightShift) detailVisibleHeightShiftFromStart=\(detailVisibleHeightShift) topEdgeMovedBeforeHeightSettles=\(topEdgeMovedBeforeHeightSettles) targetID=\(logID.uuidString)"
+            sampleMessage
         )
+    }
+
+    private func captureTopEdgeBeginReplayMessageIfNeeded(logID: UUID) {
+        guard tableState.topEdgeProbeTargetID == logID else { return }
+        guard probeTopEdgeBeginReplayMessage == nil else { return }
+        probeTopEdgeReplayTargetID = logID
+        probeTopEdgeBeginReplayMessage =
+            "session=\(tableState.topEdgeProbeSession) direction=\(tableState.topEdgeProbeDirection) target=\(logID.uuidString) rowToken=\(probeRowToken)"
+    }
+
+    private func emitTopEdgeReplayIfNeeded(logID: UUID) {
+        guard probeTopEdgeReplayTargetID == logID else { return }
+        guard let beginMessage = probeTopEdgeBeginReplayMessage else { return }
+        traceHostedRow("probe.topEdge.begin", "\(beginMessage) replay=tail")
+        for sampleMessage in probeTopEdgeEarlySampleMessages.prefix(topEdgeProbeReplaySampleCount) {
+            traceHostedRow("swiftui.row.topAnchorProbe.sample", "\(sampleMessage) replay=tail")
+        }
+        probeTopEdgeReplayTargetID = nil
+        probeTopEdgeBeginReplayMessage = nil
+        probeTopEdgeEarlySampleMessages = []
     }
 
     private func shouldEmitDetailProbeSample(sampleIndex: Int, progress: CGFloat) -> Bool {
