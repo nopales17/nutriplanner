@@ -1,0 +1,22 @@
+{
+  "incident_id": "incident-20260313-default-import-location-miss",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "None"
+        ],
+        "contradicting_evidence": [
+          "Issue is ingestion source discovery across simulator/local iCloud directories",
+          "No runtime tentative-vs-committed state behavior implicated"
+        ],
+        "missing_evidence": [
+          "Whether default import search includes iCloud Drive Downloads and nested folders"
+        ],
+        "next_discriminating_check": "Expand auto-discovery to include iCloud Downloads and recursive incident-*.json search, then report searched locations on failure"
+      }
+    ]
+  }
+}

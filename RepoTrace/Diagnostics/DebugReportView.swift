@@ -6,7 +6,7 @@ struct DebugReportView: View {
     @State private var expectedBehavior = ""
     @State private var actualBehavior = ""
     @State private var reporterNotes = ""
-    @State private var screenName = "DemoHome"
+    @State private var screenName = "Estimate"
 
     @State private var savedIncidentURL: URL?
     @State private var exportFile: ExportFile?
@@ -95,7 +95,7 @@ struct DebugReportView: View {
         if reporterNotes.isEmpty {
             reporterNotes = draft.reporterNotes
         }
-        if screenName.isEmpty || screenName == "DemoHome" {
+        if screenName.isEmpty || screenName == "Estimate" {
             screenName = draft.screenName
         }
     }

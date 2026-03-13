@@ -1,0 +1,22 @@
+{
+  "incident_id": "incident-20260313-handsfree-ingestion",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "None"
+        ],
+        "contradicting_evidence": [
+          "Issue concerns incident source discovery and ingestion automation path resolution",
+          "No runtime tentative-vs-committed state bug pattern implicated"
+        ],
+        "missing_evidence": [
+          "Whether the single helper command first checks simulator incident pull path and then local export discovery path"
+        ],
+        "next_discriminating_check": "Make ingest_exported_incident.py orchestrate simulator pull first, then local export auto-discovery, and finish by invoking new_incident.py"
+      }
+    ]
+  }
+}

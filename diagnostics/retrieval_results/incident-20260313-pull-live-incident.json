@@ -1,0 +1,22 @@
+{
+  "incident_id": "incident-20260313-pull-live-incident",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "None"
+        ],
+        "contradicting_evidence": [
+          "Issue is ingestion source selection and simulator container lookup configuration",
+          "No runtime tentative-vs-committed state behavior implicated"
+        ],
+        "missing_evidence": [
+          "Whether pull_simulator_incident.py targets the live app bundle and scans all relevant booted containers"
+        ],
+        "next_discriminating_check": "Align pull_simulator_incident.py bundle targeting with live app and choose newest valid raw incident JSON across booted simulator containers"
+      }
+    ]
+  }
+}

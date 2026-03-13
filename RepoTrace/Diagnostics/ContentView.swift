@@ -126,6 +126,7 @@ struct ContentView: View {
         TabView {
             NavigationStack {
                 estimateView
+                    .repoTraceDebugReportEntryPoint()
             }
             .tabItem {
                 Label("Estimate", systemImage: "pencil.and.list.clipboard")
@@ -602,28 +603,50 @@ struct ContentView: View {
                 draftMeal: $editingMealText,
                 onDelete: { id in deleteLogs(by: [id]) },
                 onToggleExpanded: { id in
-                    if expandedLogID == id {
-                        expandedLogID = nil
-                    } else {
-                        expandedLogID = id
-                    }
+                    let expectedTarget = expandedLogID == id ? nil : id
+                    traceRowAnimation(
+                        "ui.tap.expand",
+                        "tappedID=\(id.uuidString) expectedExpandedTarget=\(formattedID(expectedTarget)) currentExpanded=\(formattedID(expandedLogID)) currentEditing=\(formattedID(editingLogID))"
+                    )
+                    expandedLogID = expectedTarget
+                    traceRowAnimation(
+                        "state.mutate.expand",
+                        "tappedID=\(id.uuidString) expandedNow=\(formattedID(expandedLogID)) editingNow=\(formattedID(editingLogID))"
+                    )
                 },
                 onEdit: { id in
                     dismissKeyboard()
-                    if editingLogID == id {
+                    let expectedTarget = editingLogID == id ? nil : id
+                    traceRowAnimation(
+                        "ui.tap.edit",
+                        "tappedID=\(id.uuidString) expectedEditingTarget=\(formattedID(expectedTarget)) currentExpanded=\(formattedID(expandedLogID)) currentEditing=\(formattedID(editingLogID))"
+                    )
+                    if expectedTarget == nil {
                         editingLogID = nil
                         editingMealText = ""
                     } else {
                         editingLogID = id
                         editingMealText = logs.first(where: { $0.id == id })?.meal ?? ""
                     }
+                    traceRowAnimation(
+                        "state.mutate.edit",
+                        "tappedID=\(id.uuidString) editingNow=\(formattedID(editingLogID)) expandedNow=\(formattedID(expandedLogID)) draftLength=\(editingMealText.count)"
+                    )
                 },
                 onToggleFavorite: { id in
                     toggleFavorite(for: id)
                 },
                 onCancelEdit: {
+                    traceRowAnimation(
+                        "ui.tap.cancelEdit",
+                        "currentEditing=\(formattedID(editingLogID)) currentExpanded=\(formattedID(expandedLogID))"
+                    )
                     editingLogID = nil
                     editingMealText = ""
+                    traceRowAnimation(
+                        "state.mutate.cancelEdit",
+                        "editingNow=\(formattedID(editingLogID)) expandedNow=\(formattedID(expandedLogID))"
+                    )
                 },
                 onUpdate: { id, newMeal in
                     if let entry = logs.first(where: { $0.id == id }) {
@@ -659,6 +682,19 @@ struct ContentView: View {
                 .allowsHitTesting(false)
             }
         }
+    }
+
+    private func traceRowAnimation(_ event: String, _ message: String) {
+        #if DEBUG
+        let uptime = String(format: "%.6f", ProcessInfo.processInfo.systemUptime)
+        let line = "t=\(uptime) event=\(event) \(message)"
+        print("[LogAnimationTrace] \(line)")
+        BreadcrumbStore.shared.add(line, category: "log-animation")
+        #endif
+    }
+
+    private func formattedID(_ id: UUID?) -> String {
+        id?.uuidString ?? "nil"
     }
 
     private func deleteLogs(by ids: [UUID]) {

@@ -69,14 +69,69 @@
     },
     {
       "id": "incident-ingest-defaults-to-newest-inbox-json",
-      "status": "supported",
+      "status": "falsified",
       "subsystem": "diagnostics-ingest",
-      "statement": "new_incident.py can ingest an explicit JSON path, or with no args it ingests the newest diagnostics/inbox/*.json file.",
+      "statement": "Superseded: new_incident.py no longer ingests arbitrary newest diagnostics/inbox/*.json; it selects newest inbox JSON that matches raw incident report schema.",
       "files": [
         "scripts/new_incident.py",
         "diagnostics/inbox/.gitkeep"
       ],
       "checked_at": "2026-03-10"
+    },
+    {
+      "id": "incident-ingest-defaults-to-newest-valid-raw-report",
+      "status": "supported",
+      "subsystem": "diagnostics-ingest",
+      "statement": "new_incident.py can ingest an explicit JSON path, or with no args it ingests the newest diagnostics/inbox/*.json that has raw incident report schema (top-level id), skipping incompatible payloads.",
+      "files": [
+        "scripts/new_incident.py",
+        "diagnostics/inbox/.gitkeep"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
+      "id": "incident-ingest-accepts-id-or-incident-id",
+      "status": "falsified",
+      "subsystem": "diagnostics-ingest",
+      "statement": "Superseded: accepting incident_id retrieval payloads in new_incident.py produced empty/low-signal incident markdown; ingest now requires raw incident report schema with top-level id.",
+      "files": [
+        "scripts/new_incident.py"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
+      "id": "incident-ingest-requires-raw-report-id",
+      "status": "supported",
+      "subsystem": "diagnostics-ingest",
+      "statement": "new_incident.py accepts only raw incident report payloads with top-level id; it emits a specific error when given retrieval payload shape (incident_id + retrieval), and auto-discovery skips non-report inbox JSON files.",
+      "files": [
+        "scripts/new_incident.py"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
+      "id": "incident-ingest-helper-for-iphone-export",
+      "status": "falsified",
+      "subsystem": "diagnostics-ingest",
+      "statement": "Superseded: ingest_exported_incident.py no longer starts with simulator pull; it now first attempts connected physical iOS device pull via devicectl.",
+      "files": [
+        "scripts/ingest_exported_incident.py",
+        "scripts/new_incident.py",
+        "scripts/pull_simulator_incident.py"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
+      "id": "incident-ingest-helper-prefers-connected-iphone-devicectl",
+      "status": "supported",
+      "subsystem": "diagnostics-ingest",
+      "statement": "ingest_exported_incident.py provides one-command ingestion with no args by trying connected physical iOS devices first (xcrun devicectl appDataContainer Documents/Incidents copy), then simulator pull, then local/iCloud auto-discovery (iCloud/Downloads/Documents/Desktop recursive incident-*.json scan). It validates top-level id, copies to diagnostics/inbox/<id>.json, and invokes new_incident.py.",
+      "files": [
+        "scripts/ingest_exported_incident.py",
+        "scripts/new_incident.py",
+        "scripts/pull_simulator_incident.py"
+      ],
+      "checked_at": "2026-03-13"
     },
     {
       "id": "demo-fake-bug-reset-counter",
@@ -113,14 +168,25 @@
     },
     {
       "id": "simulator-helper-copies-newest-unprocessed-incident",
-      "status": "supported",
+      "status": "falsified",
       "subsystem": "diagnostics-ingest",
-      "statement": "pull_simulator_incident.py finds the booted simulator app data container and copies the newest unprocessed Documents/Incidents JSON into diagnostics/inbox.",
+      "statement": "Superseded: pull_simulator_incident.py no longer selects a single first booted container; it now scans all booted containers for the configured app bundle.",
       "files": [
         "scripts/pull_simulator_incident.py",
         "diagnostics/inbox/.gitkeep"
       ],
       "checked_at": "2026-03-10"
+    },
+    {
+      "id": "simulator-helper-targets-live-bundle-and-valid-incident-schema",
+      "status": "supported",
+      "subsystem": "diagnostics-ingest",
+      "statement": "pull_simulator_incident.py defaults to live app bundle nutriplanner.nutriplanner (override via PULL_INCIDENT_BUNDLE_ID), first scans booted simulators and then falls back to all simulator devices for app containers, and copies newest unprocessed JSON that matches raw incident report schema (top-level id).",
+      "files": [
+        "scripts/pull_simulator_incident.py",
+        "diagnostics/inbox/.gitkeep"
+      ],
+      "checked_at": "2026-03-13"
     },
     {
       "id": "demo-coupon-discount-integer-division-bug",
@@ -197,8 +263,20 @@
       ],
       "checked_at": "2026-03-12",
       "retrieval_priority": "primary"
+    },
+    {
+      "id": "nutriplanner-sync-root-copies-placeholder-resources",
+      "status": "supported",
+      "subsystem": "build-resources",
+      "statement": "With PBXFileSystemSynchronizedRootGroup, repo placeholder/control-plane files can be copied into app resources; duplicate placeholder basenames like diagnostics/*/.gitkeep cause duplicate bundle output errors unless excluded (for example via EXCLUDED_SOURCE_FILE_NAMES=.gitkeep).",
+      "files": [
+        "../nutriplanner.xcodeproj/project.pbxproj",
+        "diagnostics/incidents/.gitkeep",
+        "diagnostics/retrieval_results/.gitkeep"
+      ],
+      "checked_at": "2026-03-13"
     }
   ],
-  "last_updated": "2026-03-12",
+  "last_updated": "2026-03-13",
   "schema_version": 1
 }

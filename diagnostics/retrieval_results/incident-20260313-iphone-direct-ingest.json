@@ -1,0 +1,22 @@
+{
+  "incident_id": "incident-20260313-iphone-direct-ingest",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "None"
+        ],
+        "contradicting_evidence": [
+          "Observed failure is transport/discovery of raw incident JSON from physical iPhone to macOS workspace",
+          "xcrun devicectl list devices and device file copy succeed, proving ingestion path is tooling/source-location related rather than UI state promotion"
+        ],
+        "missing_evidence": [
+          "Whether user environment has connected/trusted iPhone and Xcode developer services available at ingest run time"
+        ],
+        "next_discriminating_check": "Run python3 scripts/ingest_exported_incident.py with iPhone connected/unlocked; if no incident is pulled, run xcrun devicectl list devices and confirm iPhone shows as connected"
+      }
+    ]
+  }
+}

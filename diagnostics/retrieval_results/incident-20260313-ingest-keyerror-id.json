@@ -1,0 +1,23 @@
+{
+  "incident_id": "incident-20260313-ingest-keyerror-id",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "None"
+        ],
+        "contradicting_evidence": [
+          "Failure is deterministic ingestion KeyError on missing JSON key during local script processing",
+          "No runtime tentative-vs-committed state behavior implicated"
+        ],
+        "missing_evidence": [
+          "Exact top-level keys emitted by IncidentWriter",
+          "Exact required keys parsed by scripts/new_incident.py"
+        ],
+        "next_discriminating_check": "Compare raw incident JSON keys against scripts/new_incident.py expected schema and align one side with the smallest coherent change"
+      }
+    ]
+  }
+}

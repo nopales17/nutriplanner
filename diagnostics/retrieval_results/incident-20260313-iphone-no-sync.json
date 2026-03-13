@@ -1,0 +1,22 @@
+{
+  "incident_id": "incident-20260313-iphone-no-sync",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "None"
+        ],
+        "contradicting_evidence": [
+          "Issue is ingestion source transport from physical device sandbox to local workspace",
+          "No runtime tentative-vs-committed state behavior implicated"
+        ],
+        "missing_evidence": [
+          "Whether Xcode device tooling can copy raw incident JSON directly from connected iPhone app data container"
+        ],
+        "next_discriminating_check": "Probe xcrun devicectl capabilities for listing connected physical devices and copying files from app data containers"
+      }
+    ]
+  }
+}

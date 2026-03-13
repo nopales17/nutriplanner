@@ -28,6 +28,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private var layoutPassID: Int = 0
     private var heightCache: [UUID: CGFloat] = [:]
     private var isCollapsingAnimation = false
+    private var animationTraceSequence: Int = 0
 
     private var onDelete: ((UUID) -> Void)?
     private var onToggleExpanded: ((UUID) -> Void)?
@@ -265,6 +266,10 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         let dataChanged = previousSectionIDs != newSectionIDs || previousRowIDs != newRowIDs
 
         debugLog("dataChanged=\(dataChanged) expandedChanged=\(expandedChanged) editingChanged=\(editingChanged)")
+        traceAnimation(
+            "state.applyUpdate",
+            "oldExpanded=\(formattedID(oldExpandedID)) oldEditing=\(formattedID(oldEditingID)) newExpanded=\(formattedID(payload.expandedID)) newEditing=\(formattedID(payload.editingID)) dataChanged=\(dataChanged) expandedChanged=\(expandedChanged) editingChanged=\(editingChanged)"
+        )
 
         let affectedIDs = [oldExpandedID, payload.expandedID, oldEditingID, payload.editingID].compactMap { $0 }
 
@@ -286,6 +291,10 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             dataSource.apply(snapshot, animatingDifferences: shouldAnimateSnapshot) { [weak self] in
                 guard let self else { return }
                 self.refreshVisibleSectionHeaders()
+                self.traceAnimation(
+                    "snapshot.applied",
+                    "sections=\(payload.sections.count) rows=\(totalRows) shouldAnimate=\(shouldAnimateSnapshot) affected=\(affectedIDs.map { $0.uuidString })"
+                )
                 if expandedChanged || editingChanged, !affectedIDs.isEmpty {
                     self.debugLog("startHeightAnimation after snapshot affectedIDs=\(affectedIDs)")
                     self.layoutPassID += 1
@@ -311,6 +320,10 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         let merged = pendingAffectedIDs + affectedIDs
         pendingAffectedIDs = Array(Set(merged))
         debugLog("scheduleHeightAnimation pending=\(pendingAffectedIDs)")
+        traceAnimation(
+            "animation.schedule",
+            "incoming=\(affectedIDs.map { $0.uuidString }) pending=\(pendingAffectedIDs.map { $0.uuidString }) isAnimating=\(isAnimatingHeight)"
+        )
         if isAnimatingHeight {
             return
         }
@@ -335,6 +348,11 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             precomputeVisibleHeights(for: affectedIDs)
         }
         let anchor = captureScrollAnchor(for: affectedIDs)
+        let animationStart = ProcessInfo.processInfo.systemUptime
+        traceAnimation(
+            "animation.start",
+            "affected=\(affectedIDs.map { $0.uuidString }) expanded=\(formattedID(expandedID)) editing=\(formattedID(editingID)) targetMap=\(affectedIDs.map { "\($0.uuidString)->\(String(describing: indexPathForItem(id: $0)))" }) anchor=\(describe(anchor))"
+        )
         debugLog("beginUpdates animation")
         let startOffset = tableView.contentOffset
         let inset = tableView.adjustedContentInset
@@ -345,7 +363,17 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         let startBottomGap = startMaxOffsetY - startOffset.y
         let bottomAnchored = startBottomGap < 24
         let animator = UIViewPropertyAnimator(duration: animationDuration, curve: .easeInOut) {
+            let batchStart = ProcessInfo.processInfo.systemUptime
+            self.traceAnimation(
+                "animation.batch.begin",
+                "affected=\(affectedIDs.map { $0.uuidString }) bottomAnchored=\(bottomAnchored) offset=\(self.tableView.contentOffset)"
+            )
             self.tableView.performBatchUpdates(nil)
+            let batchEnd = ProcessInfo.processInfo.systemUptime
+            self.traceAnimation(
+                "animation.batch.end",
+                "elapsed=\(String(format: "%.6f", batchEnd - batchStart)) contentSize=\(self.tableView.contentSize)"
+            )
             self.tableView.layoutIfNeeded()
             if bottomAnchored {
                 let newMaxOffsetY = max(
@@ -380,6 +408,11 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                 self.finishHeightAnimation()
             }
             self.logTableState("afterHeightAnimation", expandedID: self.expandedID)
+            let elapsed = ProcessInfo.processInfo.systemUptime - animationStart
+            self.traceAnimation(
+                "animation.complete",
+                "elapsed=\(String(format: "%.6f", elapsed)) affected=\(affectedIDs.map { $0.uuidString }) expanded=\(self.formattedID(self.expandedID)) expandedIndex=\(String(describing: self.expandedID.flatMap { self.indexPathForItem(id: $0) }))"
+            )
         }
         animator.startAnimation()
     }
@@ -478,16 +511,60 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         #endif
     }
 
+    private func traceAnimation(_ event: String, _ message: String) {
+        #if DEBUG
+        animationTraceSequence += 1
+        let uptime = String(format: "%.6f", ProcessInfo.processInfo.systemUptime)
+        let line = "t=\(uptime) seq=\(animationTraceSequence) event=\(event) \(message)"
+        print("[LogAnimationTrace] \(line)")
+        BreadcrumbStore.shared.add(line, category: "log-animation")
+        #endif
+    }
+
+    private func formattedID(_ id: UUID?) -> String {
+        id?.uuidString ?? "nil"
+    }
+
+    private func describe(_ anchor: ScrollAnchor?) -> String {
+        guard let anchor else { return "none" }
+        switch anchor.kind {
+        case .bottomGap(let gap):
+            return "bottomGap(\(String(format: "%.2f", gap)))"
+        case .rowTop(let id, let delta):
+            return "rowTop(id=\(id.uuidString),delta=\(String(format: "%.2f", delta)))"
+        }
+    }
+
+    private func visibleIndexToItemMappings() -> [String] {
+        let visible = tableView.indexPathsForVisibleRows ?? []
+        return visible.compactMap { indexPath in
+            guard let rowID = dataSource.itemIdentifier(for: indexPath), case let .entry(id)? = rowKindByID[rowID] else {
+                return "\(indexPath.section):\(indexPath.row)<->unknown"
+            }
+            return "\(indexPath.section):\(indexPath.row)<->\(id.uuidString)"
+        }
+    }
+
+    private func pointerString(_ object: AnyObject) -> String {
+        String(describing: Unmanaged.passUnretained(object).toOpaque())
+    }
+
     private func logTableState(_ label: String, expandedID: UUID?) {
         #if DEBUG
         let offset = tableView.contentOffset
         let inset = tableView.adjustedContentInset
         let size = tableView.contentSize
         let visible = tableView.indexPathsForVisibleRows ?? []
+        let visibleMappings = visibleIndexToItemMappings()
+        let editingIndexPath = editingID.flatMap { dataSource.indexPath(for: Self.entryRowID(for: $0)) }
         let expandedIndexPath = expandedID.flatMap { dataSource.indexPath(for: Self.entryRowID(for: $0)) }
         let expandedRect = expandedIndexPath.map { tableView.rectForRow(at: $0) }
         print("[LogsTableViewController] \(label) offset=\(offset) inset=\(inset) contentSize=\(size)")
         print("[LogsTableViewController] \(label) visible=\(visible) expandedIndex=\(String(describing: expandedIndexPath)) expandedRect=\(String(describing: expandedRect)) dragging=\(tableView.isDragging) decel=\(tableView.isDecelerating)")
+        traceAnimation(
+            "table.\(label)",
+            "expanded=\(formattedID(expandedID)) editing=\(formattedID(editingID)) expandedIndex=\(String(describing: expandedIndexPath)) editingIndex=\(String(describing: editingIndexPath)) visibleMap=\(visibleMappings)"
+        )
         #endif
     }
 
@@ -548,7 +625,18 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
         if let rowID = dataSource.itemIdentifier(for: indexPath), case let .entry(id)? = rowKindByID[rowID] {
             heightCache[id] = cell.contentView.bounds.height
+            traceAnimation(
+                "cell.willDisplay",
+                "index=\(indexPath.section):\(indexPath.row) itemID=\(id.uuidString) cell=\(pointerString(cell)) reuseID=\(cell.reuseIdentifier ?? "nil") height=\(cell.contentView.bounds.height)"
+            )
         }
+    }
+
+    func tableView(_ tableView: UITableView, didEndDisplaying cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        traceAnimation(
+            "cell.didEndDisplay",
+            "index=\(indexPath.section):\(indexPath.row) cell=\(pointerString(cell)) reuseID=\(cell.reuseIdentifier ?? "nil")"
+        )
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -668,11 +756,15 @@ struct LogRowHostedView: View {
 
     var body: some View {
         if let log {
+            let isExpanded = tableState.expandedID == log.id
+            let isEditing = tableState.editingID == log.id
+            let isHeightAnimating = tableState.animatingIDs.contains(log.id)
+            let renderIdentity = "box=\(pointerString(idBox)) logID=\(log.id.uuidString) pass=\(tableState.layoutPassID) expanded=\(isExpanded) editing=\(isEditing) animating=\(isHeightAnimating)"
             LogRowCardView(
                 log: log,
-                isExpanded: tableState.expandedID == log.id,
-                isEditing: tableState.editingID == log.id,
-                isHeightAnimating: tableState.animatingIDs.contains(log.id),
+                isExpanded: isExpanded,
+                isEditing: isEditing,
+                isHeightAnimating: isHeightAnimating,
                 draftMeal: tableState.draftMeal,
                 onDraftChange: { tableState.draftMeal = $0 },
                 onToggleExpanded: { tableState.onToggleExpanded(log.id) },
@@ -681,11 +773,39 @@ struct LogRowHostedView: View {
                 onCancelEdit: { tableState.onCancelEdit() },
                 onUpdate: { tableState.onUpdate(log.id, tableState.draftMeal) }
             )
+            .onAppear {
+                traceHostedRow("swiftui.row.appear", renderIdentity)
+            }
+            .onDisappear {
+                traceHostedRow("swiftui.row.disappear", renderIdentity)
+            }
+            .onChange(of: isExpanded) { _, newValue in
+                traceHostedRow("swiftui.row.expandedChanged", "\(renderIdentity) newExpanded=\(newValue)")
+            }
+            .onChange(of: isEditing) { _, newValue in
+                traceHostedRow("swiftui.row.editingChanged", "\(renderIdentity) newEditing=\(newValue)")
+            }
+            .onChange(of: isHeightAnimating) { _, newValue in
+                traceHostedRow("swiftui.row.animatingChanged", "\(renderIdentity) newAnimating=\(newValue)")
+            }
         } else {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.clear)
                 .frame(height: 80)
         }
+    }
+
+    private func traceHostedRow(_ event: String, _ message: String) {
+        #if DEBUG
+        let uptime = String(format: "%.6f", ProcessInfo.processInfo.systemUptime)
+        let line = "t=\(uptime) event=\(event) \(message)"
+        print("[LogAnimationTrace] \(line)")
+        BreadcrumbStore.shared.add(line, category: "log-animation")
+        #endif
+    }
+
+    private func pointerString(_ object: AnyObject) -> String {
+        String(describing: Unmanaged.passUnretained(object).toOpaque())
     }
 }
 
@@ -697,10 +817,12 @@ final class HostingLogCell: UITableViewCell {
     private var fittingCallCount = 0
     private var lastTargetWidth: CGFloat = 0
     private var lastNonZeroWidth: CGFloat = 0
+    private var currentRowID: UUID?
 
     func configure(id: UUID, tableState: TableState) {
         backgroundColor = .clear
         selectionStyle = .none
+        let previousID = currentRowID
         if hostingController == nil || self.tableState !== tableState {
             self.tableState = tableState
             let rootView = AnyView(LogRowHostedView(idBox: rowIDBox).environmentObject(tableState))
@@ -721,8 +843,26 @@ final class HostingLogCell: UITableViewCell {
                 host.view.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
                 host.view.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
             ])
+            traceCell(
+                "cell.host.create",
+                "cell=\(pointerString(self)) host=\(pointerString(host)) idBox=\(pointerString(rowIDBox))"
+            )
         }
         rowIDBox.id = id
+        currentRowID = id
+        traceCell(
+            "cell.configure",
+            "cell=\(pointerString(self)) previousID=\(formattedID(previousID)) newID=\(id.uuidString) host=\(pointerString(hostingController)) idBox=\(pointerString(rowIDBox))"
+        )
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        traceCell(
+            "cell.prepareForReuse",
+            "cell=\(pointerString(self)) previousID=\(formattedID(currentRowID)) host=\(pointerString(hostingController))"
+        )
+        currentRowID = nil
     }
 
     override func systemLayoutSizeFitting(
@@ -770,6 +910,24 @@ final class HostingLogCell: UITableViewCell {
         host.view.layoutIfNeeded()
         let size = host.sizeThatFits(in: CGSize(width: targetWidth, height: .greatestFiniteMagnitude))
         return pixelRound(size.height)
+    }
+
+    private func traceCell(_ event: String, _ message: String) {
+        #if DEBUG
+        let uptime = String(format: "%.6f", ProcessInfo.processInfo.systemUptime)
+        let line = "t=\(uptime) event=\(event) \(message)"
+        print("[LogAnimationTrace] \(line)")
+        BreadcrumbStore.shared.add(line, category: "log-animation")
+        #endif
+    }
+
+    private func formattedID(_ id: UUID?) -> String {
+        id?.uuidString ?? "nil"
+    }
+
+    private func pointerString(_ object: AnyObject?) -> String {
+        guard let object else { return "nil" }
+        return String(describing: Unmanaged.passUnretained(object).toOpaque())
     }
 }
 
