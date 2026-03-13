@@ -1,0 +1,34 @@
+{
+  "incident_id": "incident-20260313-092824",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "subsystem_candidates": [
+      "UITableView HostingLogCell layer stack (cell/contentView/host view)",
+      "SwiftUI hosted row root/container in LogRowHostedView",
+      "LogRowCardView visible top-edge render owners (outer/background/border/clip)"
+    ],
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Current row-local probes show stable internal geometry and seam deltas in collapse traces.",
+          "User reports the same visible top-edge jump still reproduces despite prior probe-oriented refinements."
+        ],
+        "contradicting_evidence": [
+          "The issue is a rendered top-edge artifact, not a state-promotion mismatch between tentative and committed channels.",
+          "Prior instrumentation focused on internal SwiftUI geometry proxies that may not be the true visible owner."
+        ],
+        "missing_evidence": [
+          "A single correlated trace that identifies which actual rendered owner layer (cell/contentView/host root/card border/clip/sibling occlusion) moves when the user-visible top edge jumps."
+        ],
+        "next_discriminating_check": "Add direct owner-stack probes at collapse start for the candidate visible-owner layers and compare first movement timestamp/delta against the user-visible top-edge jump."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "The visible jump is owned by a rendered container/layer outside currently trusted internal layout proxies.",
+      "first_diverging_owner": "Unknown until owner-stack correlation probes are added"
+    },
+    "triage_policy_mode": "ambiguous",
+    "next_action_mode": "Run one narrow visible-owner correlation instrumentation pass; no bug fix"
+  }
+}

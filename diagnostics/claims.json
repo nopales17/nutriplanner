@@ -363,12 +363,34 @@
     },
     {
       "id": "estimate-row-edit-first-collapse-boundary-carries-detail-visibility",
-      "status": "supported",
+      "status": "falsified",
       "subsystem": "estimate-row-render",
-      "statement": "In edit-first traces, the same target row can report `phaseHasPriorEdit=true` on collapse sequence context while replayed collapse-boundary top-anchor sample still carries pre-collapse detail visibility (`detailVisibleHeight` near intrinsic) before later collapse samples settle to zero, indicating sequence-coupled boundary state carryover.",
+      "statement": "Superseded: after the local collapse-path fix, newest edit-first evidence shows collapse sample-1 already at `detailVisibleHeight=0` with stable boundary behavior, so prior-edit sequence context is no longer the active source of boundary divergence.",
       "files": [
         "LogsTableViewController.swift",
-        "diagnostics/incidents/incident-20260313-092008.md"
+        "diagnostics/incidents/incident-20260313-092008.md",
+        "diagnostics/incidents/incident-20260313-092809.md"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
+      "id": "estimate-row-non-edit-collapse-sample1-detail-height-spike-is-capture-ordering",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "In non-edit collapse traces, `probeSample=1` can briefly report large pre-clamp `detailVisibleHeight` while card height is already collapsed, and `probeSample=2` immediately clamps to zero with closed detail gate/local state settle; this pattern is consistent with transition-start probe capture ordering artifact rather than sustained rendered boundary-state divergence.",
+      "files": [
+        "LogsTableViewController.swift",
+        "diagnostics/incidents/incident-20260313-092824.md"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
+      "id": "estimate-row-owner-stack-probe-correlates-uikit-and-swiftui-visible-layers",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "Collapse instrumentation now emits `probe.ownerStack.sample` from `LogsTableViewController` with UIKit owner frames (`UITableView` row rect, cell, contentView, host view, first SwiftUI root subview), clip/mask/compositing flags, and next-row overlap metrics; `swiftui.row.topAnchorProbe.sample` also carries `detailClipContainerMinY` and owner-stack session context to align visible top-edge movement with owner-layer motion.",
+      "files": [
+        "LogsTableViewController.swift"
       ],
       "checked_at": "2026-03-13"
     }
@@ -392,7 +414,8 @@
       "demo-coupon-discount-integer-division-bug",
       "demo-stale-policy-context-bug",
       "demo-pending-vs-applied-coupon-divergence-bug",
-      "demo-pending-vs-applied-delivery-promise-divergence-bug"
+      "demo-pending-vs-applied-delivery-promise-divergence-bug",
+      "estimate-row-edit-first-collapse-boundary-carries-detail-visibility"
     ]
   },
   "last_updated": "2026-03-13",
