@@ -306,6 +306,17 @@
       "checked_at": "2026-03-13"
     },
     {
+      "id": "estimate-row-detail-opacity-owned-by-post-gate-container",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "In `LogRowCardView`, detail opacity probing/rendering should be applied on the post-gate detail container (after collapse frame+clip) and clamped to 0 whenever the visibility gate is closed (`detailFrameHeight == 0`) to prevent independent opacity interpolation while visible detail height is zero.",
+      "files": [
+        "LogsTableViewController.swift",
+        "diagnostics/incidents/incident-20260313-064318.md"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
       "id": "nutriplanner-sync-root-copies-placeholder-resources",
       "status": "supported",
       "subsystem": "build-resources",

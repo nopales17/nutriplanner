@@ -1,0 +1,23 @@
+{
+  "incident_id": "incident-20260313-064318",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Row-local geometry remains coherent at collapse state (`firstChildToDetailDeltaY=12.000`, `belowChildToFirstChildDeltaY=34.333`) while `detailVisibleHeight=0.000`.",
+          "Collapse lifecycle completes normally (`probe.collapse.end`, `animation.complete`) with expected state transitions."
+        ],
+        "contradicting_evidence": [
+          "Incident evidence shows render-path divergence: `detailFrameHeightParam=0.000` and `detailVisibleHeight=0.000` while `interpolatedOpacity` continues from 1.000 toward 0.000 during the same collapse session.",
+          "No evidence points to tentative-vs-committed state promotion mismatch in business state channels."
+        ],
+        "missing_evidence": [
+          "A direct pre/post-fix render probe confirming opacity immediately resolves to 0 whenever post-gate visible height is 0 in collapse."
+        ],
+        "next_discriminating_check": "Patch detail render ownership so opacity is zeroed by the same post-gate collapse container when collapsed, then re-run one collapse and verify `detailOpacityProbe` no longer reports non-zero interpolated opacity while `detailVisibleHeight=0.000`."
+      }
+    ]
+  }
+}

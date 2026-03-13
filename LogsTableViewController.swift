@@ -1261,6 +1261,9 @@ private struct LogRowCardView: View {
     }
 
     var body: some View {
+        let detailFrameHeight: CGFloat? = isExpanded ? nil : 0
+        let detailVisibilityGateOpen = detailFrameHeight == nil
+        let detailTargetOpacity: CGFloat = detailVisibilityGateOpen ? 1 : 0
         let microContent = VStack(alignment: .leading, spacing: 8) {
             Divider()
                 .padding(.horizontal, 12)
@@ -1375,21 +1378,7 @@ private struct LogRowCardView: View {
                             }
                     }
                 )
-                .modifier(
-                    DetailOpacityAnimatableProbeModifier(
-                        opacity: isExpanded ? 1 : 0,
-                        onSample: { interpolatedOpacity in
-                            onDetailOpacityAnimatableSample(
-                                interpolatedOpacity,
-                                isExpanded ? 1 : 0,
-                                isExpanded ? nil : 0,
-                                detailIntrinsicHeight,
-                                detailVisibleHeight
-                            )
-                        }
-                    )
-                )
-                .frame(height: isExpanded ? nil : 0, alignment: .top)
+                .frame(height: detailFrameHeight, alignment: .top)
                 .background(
                     GeometryReader { proxy in
                         Color.clear
@@ -1415,6 +1404,21 @@ private struct LogRowCardView: View {
                     }
                 )
                 .clipped()
+                .modifier(
+                    DetailOpacityAnimatableProbeModifier(
+                        opacity: detailTargetOpacity,
+                        isVisibilityGateOpen: detailVisibilityGateOpen,
+                        onSample: { interpolatedOpacity in
+                            onDetailOpacityAnimatableSample(
+                                interpolatedOpacity,
+                                detailTargetOpacity,
+                                detailFrameHeight,
+                                detailIntrinsicHeight,
+                                detailVisibleHeight
+                            )
+                        }
+                    )
+                )
                 .accessibilityHidden(!isExpanded)
                 .animation(.easeInOut(duration: 0.25), value: isExpanded)
         }
@@ -1574,20 +1578,22 @@ private struct LogRowCardView: View {
 
 private struct DetailOpacityAnimatableProbeModifier: AnimatableModifier {
     var opacity: CGFloat
+    var isVisibilityGateOpen: Bool
     let onSample: (CGFloat) -> Void
 
     var animatableData: CGFloat {
         get { opacity }
         set {
             opacity = newValue
+            let sampledOpacity = isVisibilityGateOpen ? newValue : 0
             let sample = onSample
             DispatchQueue.main.async {
-                sample(newValue)
+                sample(sampledOpacity)
             }
         }
     }
 
     func body(content: Content) -> some View {
-        content.opacity(opacity)
+        content.opacity(isVisibilityGateOpen ? opacity : 0)
     }
 }
