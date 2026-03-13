@@ -32,6 +32,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private var onDelete: ((UUID) -> Void)?
     private var onToggleExpanded: ((UUID) -> Void)?
     private var onEdit: ((UUID) -> Void)?
+    private var onToggleFavorite: ((UUID) -> Void)?
     private var onCancelEdit: (() -> Void)?
     private var onUpdate: ((UUID, String) -> Void)?
 
@@ -179,6 +180,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         onDelete: @escaping (UUID) -> Void,
         onToggleExpanded: @escaping (UUID) -> Void,
         onEdit: @escaping (UUID) -> Void,
+        onToggleFavorite: @escaping (UUID) -> Void,
         onCancelEdit: @escaping () -> Void,
         onUpdate: @escaping (UUID, String) -> Void
     ) {
@@ -191,6 +193,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             onDelete: onDelete,
             onToggleExpanded: onToggleExpanded,
             onEdit: onEdit,
+            onToggleFavorite: onToggleFavorite,
             onCancelEdit: onCancelEdit,
             onUpdate: onUpdate
         )
@@ -226,6 +229,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         onDelete = payload.onDelete
         onToggleExpanded = payload.onToggleExpanded
         onEdit = payload.onEdit
+        onToggleFavorite = payload.onToggleFavorite
         onCancelEdit = payload.onCancelEdit
         onUpdate = payload.onUpdate
         draftMeal = payload.draftMeal
@@ -245,6 +249,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         tableState.draftMeal = payload.draftMeal
         tableState.onToggleExpanded = payload.onToggleExpanded
         tableState.onEdit = payload.onEdit
+        tableState.onToggleFavorite = payload.onToggleFavorite
         tableState.onCancelEdit = payload.onCancelEdit
         tableState.onUpdate = payload.onUpdate
 
@@ -266,6 +271,8 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         if dataChanged {
             var snapshot = NSDiffableDataSourceSnapshot<Date, String>()
             var rowKinds: [String: RowKind] = [:]
+            let totalRows = payload.sections.reduce(0) { $0 + $1.entries.count }
+            let shouldAnimateSnapshot = !previousSections.isEmpty && totalRows <= 120
             for section in payload.sections {
                 snapshot.appendSections([section.id])
                 for entry in section.entries {
@@ -276,7 +283,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             }
             rowKindByID = rowKinds
             debugLog("applySnapshot dataChanged sections=\(payload.sections.count) rows=\(payload.sections.flatMap { $0.entries }.count)")
-            dataSource.apply(snapshot, animatingDifferences: true) { [weak self] in
+            dataSource.apply(snapshot, animatingDifferences: shouldAnimateSnapshot) { [weak self] in
                 guard let self else { return }
                 self.refreshVisibleSectionHeaders()
                 if expandedChanged || editingChanged, !affectedIDs.isEmpty {
@@ -493,6 +500,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         let onDelete: (UUID) -> Void
         let onToggleExpanded: (UUID) -> Void
         let onEdit: (UUID) -> Void
+        let onToggleFavorite: (UUID) -> Void
         let onCancelEdit: () -> Void
         let onUpdate: (UUID, String) -> Void
     }
@@ -538,21 +546,13 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-        #if DEBUG
-        let size = cell.contentView.bounds.size
-        print("[LogsTableViewController] willDisplay row=\(indexPath) size=\(size)")
-        #endif
         if let rowID = dataSource.itemIdentifier(for: indexPath), case let .entry(id)? = rowKindByID[rowID] {
             heightCache[id] = cell.contentView.bounds.height
         }
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        #if DEBUG
-        let offset = scrollView.contentOffset
-        let inset = scrollView.adjustedContentInset
-        print("[LogsTableViewController] scroll contentOffset=\(offset) inset=\(inset) dragging=\(scrollView.isDragging) decel=\(scrollView.isDecelerating)")
-        #endif
+        // Keep delegate conformance without per-frame logging.
     }
 
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
@@ -644,6 +644,7 @@ final class TableState: ObservableObject {
 
     var onToggleExpanded: (UUID) -> Void = { _ in }
     var onEdit: (UUID) -> Void = { _ in }
+    var onToggleFavorite: (UUID) -> Void = { _ in }
     var onCancelEdit: () -> Void = { }
     var onUpdate: (UUID, String) -> Void = { _, _ in }
 }
@@ -676,6 +677,7 @@ struct LogRowHostedView: View {
                 onDraftChange: { tableState.draftMeal = $0 },
                 onToggleExpanded: { tableState.onToggleExpanded(log.id) },
                 onEdit: { tableState.onEdit(log.id) },
+                onToggleFavorite: { tableState.onToggleFavorite(log.id) },
                 onCancelEdit: { tableState.onCancelEdit() },
                 onUpdate: { tableState.onUpdate(log.id, tableState.draftMeal) }
             )
@@ -699,9 +701,6 @@ final class HostingLogCell: UITableViewCell {
     func configure(id: UUID, tableState: TableState) {
         backgroundColor = .clear
         selectionStyle = .none
-        #if DEBUG
-        print("[HostingLogCell] configure id=\(id)")
-        #endif
         if hostingController == nil || self.tableState !== tableState {
             self.tableState = tableState
             let rootView = AnyView(LogRowHostedView(idBox: rowIDBox).environmentObject(tableState))
@@ -745,12 +744,6 @@ final class HostingLogCell: UITableViewCell {
         if targetWidth <= 0 { targetWidth = UIScreen.main.bounds.width }
         if targetWidth > 0 { lastNonZeroWidth = targetWidth }
         if let cached = tableState?.precomputedHeights[rowIDBox.id] {
-            #if DEBUG
-            let isExpanded = tableState?.expandedID == rowIDBox.id
-            let isHeightAnimating = tableState?.animatingIDs.contains(rowIDBox.id) ?? false
-            let ts = String(format: "%.3f", CACurrentMediaTime())
-            print("[HostingLogCell] t=\(ts) precomputed id=\(rowIDBox.id) expanded=\(isExpanded) anim=\(isHeightAnimating) h=\(cached)")
-            #endif
             return CGSize(width: targetWidth, height: pixelRound(cached))
         }
         let stableH = max(host.view.bounds.height, contentView.bounds.height, 10)
@@ -759,22 +752,9 @@ final class HostingLogCell: UITableViewCell {
         host.view.layoutIfNeeded()
         let fittingSize = CGSize(width: targetWidth, height: .greatestFiniteMagnitude)
         let size = host.sizeThatFits(in: fittingSize)
-        let alt = host.view.systemLayoutSizeFitting(
-            CGSize(width: targetWidth, height: UIView.layoutFittingCompressedSize.height),
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
-        )
-        #if DEBUG
+        _ = tableWidth
         fittingCallCount += 1
-        let widthDelta = abs(targetWidth - lastTargetWidth)
         lastTargetWidth = targetWidth
-        let safe = superview?.safeAreaInsets ?? .zero
-        let passID = tableState?.layoutPassID ?? -1
-        let isExpanded = tableState?.expandedID == rowIDBox.id
-        let isHeightAnimating = tableState?.animatingIDs.contains(rowIDBox.id) ?? false
-        let ts = String(format: "%.3f", CACurrentMediaTime())
-        print("[HostingLogCell] t=\(ts) pass=\(passID) call=\(fittingCallCount) id=\(rowIDBox.id) expanded=\(isExpanded) anim=\(isHeightAnimating) targetSize=\(targetSize) contentW=\(contentView.bounds.width) tableW=\(tableWidth) safe=\(safe) targetW=\(targetWidth) Δw=\(widthDelta) size=\(size) alt=\(alt)")
-        #endif
         return CGSize(width: targetWidth, height: pixelRound(size.height))
     }
 
@@ -802,6 +782,7 @@ private struct LogRowCardView: View {
     let onDraftChange: (String) -> Void
     let onToggleExpanded: () -> Void
     let onEdit: () -> Void
+    let onToggleFavorite: () -> Void
     let onCancelEdit: () -> Void
     let onUpdate: () -> Void
 
@@ -832,7 +813,7 @@ private struct LogRowCardView: View {
                 HStack(alignment: .center, spacing: 10) {
                     CaloriePillView(calories: log.estimate.dietary_energy_kcal)
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(log.date.formatted(date: .abbreviated, time: .shortened))
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -865,21 +846,34 @@ private struct LogRowCardView: View {
                             }
                             Spacer()
                             Button(action: onToggleExpanded) {
-                                Image(systemName: "chevron.down")
-                                    .font(.caption.weight(.semibold))
-                                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 6) {
+                                    Text(isExpanded ? "Collapse" : "Expand")
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                        .layoutPriority(0)
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption.weight(.semibold))
+                                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                                        .layoutPriority(1)
+                                        .fixedSize()
+                                }
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: 108, minHeight: 28, alignment: .trailing)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 0)
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .disabled(isHeightAnimating)
+                            .accessibilityLabel(isExpanded ? "Collapse details" : "Expand details")
                         }
                         .font(.caption.weight(.semibold))
                     }
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.top, 10)
-            .padding(.bottom, 12)
+            .padding(.top, 0)
+            .padding(.bottom, 10)
 
             microContent
                 .opacity(isExpanded ? 1 : 0)
@@ -908,28 +902,14 @@ private struct LogRowCardView: View {
                 collapsedHeaderContent
             }
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isEditing ? Color(.systemBackground).opacity(colorScheme == .dark ? 0.12 : 0.08) : Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.69, green: 0.54, blue: 0.95),
-                                    Color(red: 0.84, green: 0.70, blue: 0.98)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                        .opacity(isEditing ? 1 : 0)
-                )
+                .fill(isEditing ? Color.black.opacity(colorScheme == .dark ? 0.22 : 0.08) : Color.clear)
         )
-        .animation(.easeInOut(duration: 0.24), value: isEditing)
     }
 
     private var collapsedHeaderContent: some View {
@@ -939,7 +919,10 @@ private struct LogRowCardView: View {
                 .lineLimit(2)
                 .layoutPriority(1)
             Spacer(minLength: 8)
-            editPencilButton
+            VStack(alignment: .trailing, spacing: 6) {
+                editPencilButton
+                favoriteToggleButton
+            }
         }
     }
 
@@ -982,6 +965,7 @@ private struct LogRowCardView: View {
                         .foregroundStyle(.secondary)
                 }
                 editPencilButton
+                favoriteToggleButton
                 Button(action: onUpdate) {
                     Text("Update")
                         .font(.caption.weight(.semibold))
@@ -1000,6 +984,17 @@ private struct LogRowCardView: View {
         }
         .buttonStyle(.bordered)
         .disabled(isHeightAnimating)
+    }
+
+    private var favoriteToggleButton: some View {
+        Button(action: onToggleFavorite) {
+            Image(systemName: log.isFavorite ? "star.fill" : "star")
+                .font(.subheadline)
+                .foregroundStyle(log.isFavorite ? .yellow : .secondary)
+        }
+        .buttonStyle(.bordered)
+        .disabled(isHeightAnimating)
+        .accessibilityLabel(log.isFavorite ? "Remove favorite" : "Mark as favorite")
     }
 
     private func cardBackground(corners: UIRectCorner) -> some View {

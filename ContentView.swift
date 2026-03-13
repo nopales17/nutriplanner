@@ -107,27 +107,20 @@ struct ContentView: View {
     @State private var activeEstimateQueueID: EstimateQueueItem.ID? = nil
     @State private var debugJSON: String? = nil
     @State private var logs: [MealLog] = []
+    @State private var didLoadLogs = false
     @State private var expandedLogID: UUID? = nil
     @State private var logError: String? = nil
     @State private var updatingLogIDs: Set<UUID> = []
     @State private var editingLogID: UUID? = nil
     @State private var editingMealText: String = ""
     @State private var isEstimatingQueue = false
+    @State private var duplicatingFavoriteIDs: Set<UUID> = []
     @State private var estimateError: String? = nil
     @State private var showEstimateSuccess = false
     @State private var estimateSuccessMessage = "Success! Logged to Health."
     private let successBannerSeconds: Double = 4
 
     private let hk = HealthKitManager()
-
-    init() {
-        if
-            let data = logsJSON.data(using: .utf8),
-            let decoded = try? JSONDecoder().decode([MealLog].self, from: data)
-        {
-            _logs = State(initialValue: decoded)
-        }
-    }
 
     var body: some View {
         TabView {
@@ -154,6 +147,9 @@ struct ContentView: View {
         }
         .onChange(of: logs) { newValue in
             logsJSON = Self.encodeLogs(newValue)
+        }
+        .task {
+            await loadLogsIfNeeded()
         }
     }
 
@@ -290,6 +286,14 @@ struct ContentView: View {
                                     )
                             )
                     )
+
+                    if !favoriteLogs.isEmpty {
+                        FavoritesQuickAddSectionView(
+                            favorites: favoriteLogs,
+                            duplicatingIDs: duplicatingFavoriteIDs,
+                            onDuplicate: duplicateFavoriteToLog
+                        )
+                    }
 
                     if let debugJSON {
                         VStack(alignment: .leading, spacing: 8) {
@@ -520,6 +524,12 @@ struct ContentView: View {
         }
     }
 
+    private var favoriteLogs: [MealLog] {
+        logs
+            .filter(\.isFavorite)
+            .sorted(by: { $0.date > $1.date })
+    }
+
     private var dayTitleFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -592,10 +602,6 @@ struct ContentView: View {
                 draftMeal: $editingMealText,
                 onDelete: { id in deleteLogs(by: [id]) },
                 onToggleExpanded: { id in
-                    #if DEBUG
-                    let action = (expandedLogID == id) ? "collapse" : "expand"
-                    print("[ContentView] toggle \(action) id=\(id)")
-                    #endif
                     if expandedLogID == id {
                         expandedLogID = nil
                     } else {
@@ -604,21 +610,20 @@ struct ContentView: View {
                 },
                 onEdit: { id in
                     dismissKeyboard()
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        if editingLogID == id {
-                            editingLogID = nil
-                            editingMealText = ""
-                        } else {
-                            editingLogID = id
-                            editingMealText = logs.first(where: { $0.id == id })?.meal ?? ""
-                        }
-                    }
-                },
-                onCancelEdit: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    if editingLogID == id {
                         editingLogID = nil
                         editingMealText = ""
+                    } else {
+                        editingLogID = id
+                        editingMealText = logs.first(where: { $0.id == id })?.meal ?? ""
                     }
+                },
+                onToggleFavorite: { id in
+                    toggleFavorite(for: id)
+                },
+                onCancelEdit: {
+                    editingLogID = nil
+                    editingMealText = ""
                 },
                 onUpdate: { id, newMeal in
                     if let entry = logs.first(where: { $0.id == id }) {
@@ -695,7 +700,13 @@ struct ContentView: View {
                 let estimate = try await client.estimateNutrition(mealText: trimmedMeal)
                 try await hk.deleteAll(for: entry.id)
                 try await hk.writeAll(estimate, date: entry.date, entryID: entry.id)
-                let updated = MealLog(meal: trimmedMeal, estimate: estimate, date: entry.date, id: entry.id)
+                let updated = MealLog(
+                    meal: trimmedMeal,
+                    estimate: estimate,
+                    date: entry.date,
+                    id: entry.id,
+                    isFavorite: entry.isFavorite
+                )
                 await MainActor.run {
                     if let index = logs.firstIndex(where: { $0.id == entry.id }) {
                         logs[index] = updated
@@ -717,6 +728,40 @@ struct ContentView: View {
         }
     }
 
+    private func toggleFavorite(for id: UUID) {
+        guard let index = logs.firstIndex(where: { $0.id == id }) else { return }
+        logs[index].isFavorite.toggle()
+    }
+
+    private func duplicateFavoriteToLog(_ favorite: MealLog) {
+        guard !duplicatingFavoriteIDs.contains(favorite.id) else { return }
+        duplicatingFavoriteIDs.insert(favorite.id)
+        estimateError = nil
+
+        Task {
+            do {
+                try await hk.requestAuth()
+                let duplicated = MealLog(
+                    meal: favorite.meal,
+                    estimate: favorite.estimate,
+                    date: Date(),
+                    isFavorite: false
+                )
+                try await hk.writeAll(duplicated.estimate, date: duplicated.date, entryID: duplicated.id)
+                await MainActor.run {
+                    logs.insert(duplicated, at: 0)
+                    duplicatingFavoriteIDs.remove(favorite.id)
+                    showEstimateSuccessBanner("Added favorite to log.")
+                }
+            } catch {
+                await MainActor.run {
+                    estimateError = error.localizedDescription
+                    duplicatingFavoriteIDs.remove(favorite.id)
+                }
+            }
+        }
+    }
+
     private func dismissKeyboard() {
         #if canImport(UIKit)
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -729,6 +774,18 @@ struct ContentView: View {
 
     private var trimmedMealInput: String {
         meal.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    @MainActor
+    private func loadLogsIfNeeded() async {
+        guard !didLoadLogs else { return }
+        didLoadLogs = true
+        let json = logsJSON
+        let decoded = await Task.detached(priority: .userInitiated) { () -> [MealLog] in
+            guard let data = json.data(using: .utf8) else { return [] }
+            return (try? JSONDecoder().decode([MealLog].self, from: data)) ?? []
+        }.value
+        logs = decoded
     }
 }
 
@@ -792,13 +849,23 @@ private struct LogRowView: View {
                     HStack(spacing: 6) {
                         Text(isExpanded ? "Collapse" : "Expand")
                             .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .layoutPriority(0)
                         Image(systemName: "chevron.down")
                             .font(.caption.weight(.semibold))
                             .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                            .layoutPriority(1)
+                            .fixedSize()
                     }
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: 108, minHeight: 28, alignment: .trailing)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 0)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Collapse details" : "Expand details")
             }
 
             if isEditing {
@@ -1328,6 +1395,111 @@ private struct WeekDayBarView: View {
     }
 }
 
+private struct FavoritesQuickAddSectionView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let favorites: [MealLog]
+    let duplicatingIDs: Set<UUID>
+    let onDuplicate: (MealLog) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Label("Favorites", systemImage: "star.fill")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text("Quick add")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(favorites) { favorite in
+                        favoriteCard(favorite)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(.systemBackground).opacity(colorScheme == .dark ? 0.2 : 0.1))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.69, green: 0.54, blue: 0.95),
+                                    Color(red: 0.84, green: 0.70, blue: 0.98)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+    }
+
+    private func favoriteCard(_ favorite: MealLog) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+                    .padding(.top, 3)
+                Text(favorite.meal)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+            }
+
+            MacroBarView(
+                protein: favorite.estimate.protein_g,
+                carbs: favorite.estimate.carbs_g,
+                fat: favorite.estimate.fat_total_g,
+                showsValues: false
+            )
+
+            HStack(spacing: 8) {
+                Text(String(format: "%.0f kcal", favorite.estimate.dietary_energy_kcal))
+                    .foregroundStyle(.green)
+                Text(String(format: "%.0fP", favorite.estimate.protein_g))
+                    .foregroundStyle(.blue)
+                Text(String(format: "%.0fC", favorite.estimate.carbs_g))
+                    .foregroundStyle(.orange)
+                Text(String(format: "%.0fF", favorite.estimate.fat_total_g))
+                    .foregroundStyle(.pink)
+            }
+            .font(.caption.weight(.semibold))
+
+            Button(action: { onDuplicate(favorite) }) {
+                if duplicatingIDs.contains(favorite.id) {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Label("Add to Log", systemImage: "plus.circle.fill")
+                        .font(.footnote.weight(.semibold))
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Color(red: 0.55, green: 0.38, blue: 0.88))
+            .disabled(duplicatingIDs.contains(favorite.id))
+        }
+        .padding(10)
+        .frame(width: 230, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.systemBackground).opacity(colorScheme == .dark ? 0.30 : 0.22))
+        )
+    }
+}
+
 struct MacroBarView: View {
     let protein: Double
     let carbs: Double
@@ -1466,12 +1638,46 @@ struct MealLog: Identifiable, Codable, Equatable {
     var meal: String
     let estimate: NutritionEstimate
     let date: Date
+    var isFavorite: Bool
 
-    init(meal: String, estimate: NutritionEstimate, date: Date, id: UUID = UUID()) {
+    init(
+        meal: String,
+        estimate: NutritionEstimate,
+        date: Date,
+        id: UUID = UUID(),
+        isFavorite: Bool = false
+    ) {
         self.id = id
         self.meal = meal
         self.estimate = estimate
         self.date = date
+        self.isFavorite = isFavorite
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case meal
+        case estimate
+        case date
+        case isFavorite
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        meal = try container.decode(String.self, forKey: .meal)
+        estimate = try container.decode(NutritionEstimate.self, forKey: .estimate)
+        date = try container.decode(Date.self, forKey: .date)
+        isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(meal, forKey: .meal)
+        try container.encode(estimate, forKey: .estimate)
+        try container.encode(date, forKey: .date)
+        try container.encode(isFavorite, forKey: .isFavorite)
     }
 
     var macroMicroSummary: String {
@@ -1566,7 +1772,8 @@ struct MealLog: Identifiable, Codable, Equatable {
         lhs.id == rhs.id &&
             lhs.meal == rhs.meal &&
             lhs.estimate == rhs.estimate &&
-            lhs.date == rhs.date
+            lhs.date == rhs.date &&
+            lhs.isFavorite == rhs.isFavorite
     }
 }
 

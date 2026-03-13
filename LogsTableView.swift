@@ -42,6 +42,7 @@ struct LogsTableView: UIViewControllerRepresentable {
     let onDelete: (UUID) -> Void
     let onToggleExpanded: (UUID) -> Void
     let onEdit: (UUID) -> Void
+    let onToggleFavorite: (UUID) -> Void
     let onCancelEdit: () -> Void
     let onUpdate: (UUID, String) -> Void
 
@@ -59,6 +60,7 @@ struct LogsTableView: UIViewControllerRepresentable {
             onDelete: onDelete,
             onToggleExpanded: onToggleExpanded,
             onEdit: onEdit,
+            onToggleFavorite: onToggleFavorite,
             onCancelEdit: onCancelEdit,
             onUpdate: onUpdate
         )
