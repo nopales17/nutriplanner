@@ -1139,13 +1139,15 @@ struct LogRowHostedView: View {
         if !isHeightAnimating {
             return isExpanded ? "settled_expanded" : "settled_collapsed"
         }
-        if detailFrameHeightParam == nil && detailVisibilityGateOpen && detailTargetOpacity > 0 {
+        let frameHeightValue = detailFrameHeightParam ?? 0
+        let frameHeightLooksVisible = detailFrameHeightParam == nil || frameHeightValue > 0
+        if detailVisibilityGateOpen && detailTargetOpacity > 0 && frameHeightLooksVisible {
             return "animating_open_gate_target_visible"
         }
-        if detailFrameHeightParam == nil && detailVisibilityGateOpen && detailTargetOpacity == 0 {
+        if detailVisibilityGateOpen && detailTargetOpacity == 0 {
             return "animating_open_gate_target_hidden"
         }
-        if detailFrameHeightParam == 0 && !detailVisibilityGateOpen && detailTargetOpacity == 0 {
+        if !detailVisibilityGateOpen && detailTargetOpacity == 0 {
             return "animating_closed_gate_target_hidden"
         }
         return "animating_mixed"
@@ -1349,6 +1351,7 @@ private struct LogRowCardView: View {
     let geometryCoordinateSpaceName: String
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var detailPresence: CGFloat? = nil
     @State private var detailIntrinsicHeight: CGFloat = 0
     @State private var detailVisibleHeight: CGFloat = 0
     private enum MacroTarget {
@@ -1359,9 +1362,11 @@ private struct LogRowCardView: View {
     }
 
     var body: some View {
-        let detailFrameHeight: CGFloat? = isExpanded ? nil : 0
-        let detailVisibilityGateOpen = detailFrameHeight == nil
-        let detailTargetOpacity: CGFloat = detailVisibilityGateOpen ? 1 : 0
+        let resolvedDetailPresence = min(max(detailPresence ?? (isExpanded ? 1 : 0), 0), 1)
+        let detailFrameHeightValue = detailIntrinsicHeight * resolvedDetailPresence
+        let detailVisibilityGateOpen = resolvedDetailPresence > 0.001
+        let detailFrameHeight: CGFloat? = resolvedDetailPresence >= 0.999 ? nil : detailFrameHeightValue
+        let detailTargetOpacity: CGFloat = resolvedDetailPresence
         let microContent = VStack(alignment: .leading, spacing: 8) {
             Divider()
                 .padding(.horizontal, 12)
@@ -1522,8 +1527,8 @@ private struct LogRowCardView: View {
                         }
                     )
                 )
-                .accessibilityHidden(!isExpanded)
-                .animation(.easeInOut(duration: 0.25), value: isExpanded)
+                .accessibilityHidden(!detailVisibilityGateOpen)
+                .animation(.easeInOut(duration: 0.25), value: resolvedDetailPresence)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(cardBackground(corners: .allCorners))
@@ -1544,6 +1549,19 @@ private struct LogRowCardView: View {
             if isHeightAnimating && isExpanded {
                 $0.animation = nil
                 $0.disablesAnimations = true
+            }
+        }
+        .onAppear {
+            if detailPresence == nil {
+                detailPresence = isExpanded ? 1 : 0
+            }
+        }
+        .onChange(of: log.id) { _, _ in
+            detailPresence = isExpanded ? 1 : 0
+        }
+        .onChange(of: isExpanded) { _, newValue in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                detailPresence = newValue ? 1 : 0
             }
         }
     }

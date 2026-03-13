@@ -1,0 +1,27 @@
+{
+  "incident_id": "incident-20260313-072417",
+  "retrieval": {
+    "verdict": "motif_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Collapse-phase probes show `isHeightAnimating=true` while detail ownership snaps to hidden (`detailFrameHeightParam=0`, `detailVisibilityGateOpen=false`, `detailTargetOpacity=0`) at animation start.",
+          "In the same collapse session, `rawAnimatableOpacity` interpolates from 1.000 toward 0 while `renderedOpacity` is clamped to 0 and `detailVisibleHeight` stays 0, proving rendered ownership is detached from the animating scalar.",
+          "Earlier collapse evidence under the same subsystem showed the opposite discrete branch (`detailFrameHeightParam=nil`, `visibilityGateOpen=true`, `detailVisibleHeight=620.333`) while `expanded=false`, demonstrating two discrete ownership regimes rather than a single interpolating owner."
+        ],
+        "contradicting_evidence": [
+          "Current incident stream does not include direct `transitionDirection=expand` samples; expand semantics are inferred from owner code and prior collapse-phase traces."
+        ],
+        "missing_evidence": [
+          "A direct expand run with `detailPhaseProbe` + `detailOpacityProbe` + `geometryScopeProbe` confirming intermediate `detailVisibleHeight` samples between 0 and intrinsic height."
+        ],
+        "next_discriminating_check": "Capture one expand transition and verify whether `detailVisibleHeight` has intermediate values during animation; if it still snaps 0->intrinsic (or intrinsic->0) despite scalar-driven owner wiring, animated-scalar ownership is not the primary fault."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "animated-scalar ownership",
+      "first_diverging_owner": "LogRowCardView detail frame/gate/target triad derived directly from `isExpanded` (`detailFrameHeight`, `detailVisibilityGateOpen`, `detailTargetOpacity`)."
+    }
+  }
+}

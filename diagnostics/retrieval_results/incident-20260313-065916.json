@@ -1,0 +1,22 @@
+{
+  "incident_id": "incident-20260313-065916",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Collapse probe shows committed collapse state immediately (`expanded=false`, `detailFrameHeightParam=0.000`, `detailVisibleHeight=0.000`, `visibilityGateOpen=false`).",
+          "`rawAnimatableOpacity` decays from 1.000 toward 0.009 while `renderedOpacity` remains 0.000, indicating render gating dominates output rather than state-promotion mismatch."
+        ],
+        "contradicting_evidence": [
+          "No evidence of tentative-vs-committed business state divergence; collapse lifecycle completes (`probe.collapse.end`, `animation.complete`) with expected row state."
+        ],
+        "missing_evidence": [
+          "A direct expand-session `detailOpacityProbe` sample set in the same run to quantify whether collapse-only branching differs at the same owner chain."
+        ],
+        "next_discriminating_check": "At `LogRowCardView`, compare one expand and one collapse session at `detailFrameHeight/detailVisibilityGateOpen/detailTargetOpacity` ownership points to confirm collapse path closes the gate before animatable opacity can remain visually active."
+      }
+    ]
+  }
+}

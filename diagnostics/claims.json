@@ -317,6 +317,17 @@
       "checked_at": "2026-03-13"
     },
     {
+      "id": "estimate-row-collapse-gate-closes-before-opacity-settles",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "In collapse sessions, `LogRowCardView` derives `detailVisibilityGateOpen` from `detailFrameHeight` (`isExpanded ? nil : 0`), so the gate closes immediately when `isExpanded=false`; probes show `rawAnimatableOpacity` can continue decaying while `targetOpacity` and rendered opacity are already forced to 0 under the closed gate.",
+      "files": [
+        "LogsTableViewController.swift",
+        "diagnostics/incidents/incident-20260313-065916.md"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
       "id": "nutriplanner-sync-root-copies-placeholder-resources",
       "status": "supported",
       "subsystem": "build-resources",

@@ -1,0 +1,268 @@
+{
+  "actualBehavior" : "",
+  "breadcrumbs" : [
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.830271 event=swiftui.row.geometryScopeProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=4 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D coordinateSpace=rowLocal trigger=detailRegionFrame triggerInheritedAnimationDuration=0.000 triggerAnimationsEnabled=false rowMinY=304.500 rowMaxY=1086.833 rowHeight=782.333 cardOuterMinY=6.167 cardOuterMaxY=776.500 cardOuterHeight=770.333 detailRegionMinY=156.167 detailRegionMaxY=776.500 detailRegionHeight=620.333 boundaryFirstChildMinY=167.833 boundaryFirstChildMaxY=168.167 boundaryFirstChildHeight=0.333 belowBoundaryChildMinY=202.167 belowBoundaryChildMaxY=764.167 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.000 firstChildToDetailDeltaY=11.667 belowChildToFirstChildDeltaY=34.333 boundaryTopPadding=12.000 boundaryContentSpacing=8.000 boundaryFirstChildHorizontalPadding=12.000 detailVisibleHeight=620.333 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.830517 event=swiftui.row.geometryScopeProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=5 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D coordinateSpace=rowLocal trigger=belowBoundaryChildFrame triggerInheritedAnimationDuration=0.000 triggerAnimationsEnabled=false rowMinY=304.500 rowMaxY=1086.833 rowHeight=782.333 cardOuterMinY=6.167 cardOuterMaxY=776.500 cardOuterHeight=770.333 detailRegionMinY=156.167 detailRegionMaxY=776.500 detailRegionHeight=620.333 boundaryFirstChildMinY=167.833 boundaryFirstChildMaxY=168.167 boundaryFirstChildHeight=0.333 belowBoundaryChildMinY=202.500 belowBoundaryChildMaxY=764.500 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 firstChildToDetailDeltaY=11.667 belowChildToFirstChildDeltaY=34.667 boundaryTopPadding=12.000 boundaryContentSpacing=8.000 boundaryFirstChildHorizontalPadding=12.000 detailVisibleHeight=620.333 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.830792 event=swiftui.row.geometryScopeProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=6 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D coordinateSpace=rowLocal trigger=boundaryFirstChildFrame triggerInheritedAnimationDuration=0.000 triggerAnimationsEnabled=false rowMinY=304.500 rowMaxY=1086.833 rowHeight=782.333 cardOuterMinY=6.167 cardOuterMaxY=776.500 cardOuterHeight=770.333 detailRegionMinY=156.167 detailRegionMaxY=776.500 detailRegionHeight=620.333 boundaryFirstChildMinY=168.167 boundaryFirstChildMaxY=168.500 boundaryFirstChildHeight=0.333 belowBoundaryChildMinY=202.500 belowBoundaryChildMaxY=764.500 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 firstChildToDetailDeltaY=12.000 belowChildToFirstChildDeltaY=34.333 boundaryTopPadding=12.000 boundaryContentSpacing=8.000 boundaryFirstChildHorizontalPadding=12.000 detailVisibleHeight=620.333 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.831918 seq=33 event=animation.batch.end elapsed=0.039827 contentSize=(393.0, 6164.666687011719)",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.842949 seq=34 event=table.duringHeightAnimation expanded=nil editing=nil expandedIndex=nil editingIndex=nil visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.844064 event=swiftui.row.detailOpacityProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=1 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D rawAnimatableOpacity=1.000 renderedOpacity=1.000 targetOpacity=0.000 visibilityGateOpen=true detailFrameHeightParam=nil detailIntrinsicHeight=620.333 detailVisibleHeight=620.333 txDisablesAnimations=false inheritedAnimationDuration=0.000 inheritedAnimationsEnabled=true targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.880867 event=swiftui.row.detailOpacityProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=2 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D rawAnimatableOpacity=0.991 renderedOpacity=0.991 targetOpacity=0.000 visibilityGateOpen=true detailFrameHeightParam=nil detailIntrinsicHeight=620.333 detailVisibleHeight=620.333 txDisablesAnimations=false inheritedAnimationDuration=0.000 inheritedAnimationsEnabled=true targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.912408 event=swiftui.row.detailOpacityProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=4 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D rawAnimatableOpacity=0.918 renderedOpacity=0.918 targetOpacity=0.000 visibilityGateOpen=true detailFrameHeightParam=nil detailIntrinsicHeight=620.333 detailVisibleHeight=620.333 txDisablesAnimations=false inheritedAnimationDuration=0.000 inheritedAnimationsEnabled=true targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59350.981335 event=swiftui.row.detailOpacityProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=8 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D rawAnimatableOpacity=0.557 renderedOpacity=0.557 targetOpacity=0.000 visibilityGateOpen=true detailFrameHeightParam=nil detailIntrinsicHeight=620.333 detailVisibleHeight=620.333 txDisablesAnimations=false inheritedAnimationDuration=0.000 inheritedAnimationsEnabled=true targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59351.048306 event=swiftui.row.detailOpacityProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=12 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D rawAnimatableOpacity=0.147 renderedOpacity=0.147 targetOpacity=0.000 visibilityGateOpen=true detailFrameHeightParam=nil detailIntrinsicHeight=620.333 detailVisibleHeight=620.333 txDisablesAnimations=false inheritedAnimationDuration=0.000 inheritedAnimationsEnabled=true targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:26Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59351.099317 event=swiftui.row.detailOpacityProbe.sample box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=15 rowToken=EED71C44-2550-499D-9516-954C9FBDD79D rawAnimatableOpacity=0.009 renderedOpacity=0.009 targetOpacity=0.000 visibilityGateOpen=true detailFrameHeightParam=nil detailIntrinsicHeight=620.333 detailVisibleHeight=620.333 txDisablesAnimations=false inheritedAnimationDuration=0.000 inheritedAnimationsEnabled=true targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:27Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59351.100496 seq=35 event=probe.collapse.end session=1 target=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 elapsed=0.309225",
+      "timestamp" : "2026-03-13T14:08:27Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59351.101399 seq=36 event=table.afterHeightAnimation expanded=nil editing=nil expandedIndex=nil editingIndex=nil visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:27Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59351.101937 seq=37 event=animation.complete elapsed=0.310640 affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] expanded=nil expandedIndex=nil",
+      "timestamp" : "2026-03-13T14:08:27Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59351.138400 event=swiftui.row.animatingChanged box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=false newAnimating=false",
+      "timestamp" : "2026-03-13T14:08:27Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.321789 event=ui.tap.edit tappedID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 expectedEditingTarget=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 currentExpanded=nil currentEditing=nil",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.322596 event=state.mutate.edit tappedID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 editingNow=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 expandedNow=nil draftLength=30",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.329699 seq=38 event=state.applyUpdate oldExpanded=nil oldEditing=nil newExpanded=nil newEditing=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 dataChanged=false expandedChanged=false editingChanged=true",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.330355 seq=39 event=table.beforeSchedule expanded=nil editing=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 expandedIndex=nil editingIndex=Optional([0, 0]) visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.330665 seq=40 event=animation.schedule incoming=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] pending=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] isAnimating=false",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.331138 seq=41 event=table.beforeHeightAnimation expanded=nil editing=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 expandedIndex=nil editingIndex=Optional([0, 0]) visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.384769 event=swiftui.row.editingChanged box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=3 expanded=false editing=true animating=true newEditing=true",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.385135 event=swiftui.row.animatingChanged box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=3 expanded=false editing=true animating=true newAnimating=true",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.396191 seq=42 event=animation.start affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] expanded=nil editing=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 targetMap=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0->Optional([0, 0])\"] anchor=rowTop(id=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0,delta=126.00)",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.396368 seq=43 event=animation.batch.begin affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] bottomAnchored=false offset=(0.0, 346.0)",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.421389 seq=44 event=animation.batch.end elapsed=0.025020 contentSize=(393.0, 6164.666687011719)",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.428467 seq=45 event=table.duringHeightAnimation expanded=nil editing=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 expandedIndex=nil editingIndex=Optional([0, 0]) visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.683153 seq=46 event=table.afterHeightAnimation expanded=nil editing=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 expandedIndex=nil editingIndex=Optional([0, 0]) visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.684117 seq=47 event=animation.complete elapsed=0.287908 affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] expanded=nil expandedIndex=nil",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59356.733809 event=swiftui.row.animatingChanged box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=3 expanded=false editing=true animating=false newAnimating=false",
+      "timestamp" : "2026-03-13T14:08:32Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.902385 event=ui.tap.edit tappedID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 expectedEditingTarget=nil currentExpanded=nil currentEditing=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.903698 event=state.mutate.edit tappedID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 editingNow=nil expandedNow=nil draftLength=0",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.934486 seq=48 event=state.applyUpdate oldExpanded=nil oldEditing=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 newExpanded=nil newEditing=nil dataChanged=false expandedChanged=false editingChanged=true",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.935028 seq=49 event=table.beforeSchedule expanded=nil editing=nil expandedIndex=nil editingIndex=nil visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.935265 seq=50 event=animation.schedule incoming=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] pending=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] isAnimating=false",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.953375 event=swiftui.row.editingChanged box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=4 expanded=false editing=false animating=false newEditing=false",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.971190 seq=51 event=table.beforeHeightAnimation expanded=nil editing=nil expandedIndex=nil editingIndex=nil visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.981681 event=swiftui.row.animatingChanged box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=4 expanded=false editing=false animating=true newAnimating=true",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.982892 seq=52 event=animation.start affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] expanded=nil editing=nil targetMap=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0->Optional([0, 0])\"] anchor=rowTop(id=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0,delta=126.00)",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.983033 seq=53 event=animation.batch.begin affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] bottomAnchored=false offset=(0.0, 346.0)",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59357.995419 seq=54 event=animation.batch.end elapsed=0.012385 contentSize=(393.0, 6218.0)",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59358.002162 seq=55 event=table.duringHeightAnimation expanded=nil editing=nil expandedIndex=nil editingIndex=nil visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:33Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59358.263899 seq=56 event=table.afterHeightAnimation expanded=nil editing=nil expandedIndex=nil editingIndex=nil visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"]",
+      "timestamp" : "2026-03-13T14:08:34Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59358.265092 seq=57 event=animation.complete elapsed=0.282151 affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] expanded=nil expandedIndex=nil",
+      "timestamp" : "2026-03-13T14:08:34Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59358.311009 event=swiftui.row.animatingChanged box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=4 expanded=false editing=false animating=false newAnimating=false",
+      "timestamp" : "2026-03-13T14:08:34Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59359.998395 event=swiftui.row.disappear box=0x00000001194baa90 logID=3BA5B1C2-627A-472E-A3B2-3B8AC25DC077 pass=4 expanded=false editing=false animating=false",
+      "timestamp" : "2026-03-13T14:08:35Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59359.998715 event=swiftui.row.disappear box=0x0000000117dffbd0 logID=232A3930-5F2B-421C-B8D1-E36386813362 pass=4 expanded=false editing=false animating=false",
+      "timestamp" : "2026-03-13T14:08:35Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59359.998890 event=swiftui.row.disappear box=0x0000000117cb82d0 logID=83C1F15D-8B0F-40E1-A6B0-8262A5BC2E64 pass=4 expanded=false editing=false animating=false",
+      "timestamp" : "2026-03-13T14:08:35Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59359.999045 event=swiftui.row.disappear box=0x00000001194bbde0 logID=DD943A7B-44D3-4389-A541-9AB6657E8B55 pass=4 expanded=false editing=false animating=false",
+      "timestamp" : "2026-03-13T14:08:35Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=59359.999185 event=swiftui.row.disappear box=0x0000000117d86850 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=4 expanded=false editing=false animating=false",
+      "timestamp" : "2026-03-13T14:08:35Z"
+    }
+  ],
+  "expectedBehavior" : "",
+  "id" : "incident-20260313-070837",
+  "metadata" : {
+    "appVersion" : "1.0",
+    "buildNumber" : "1",
+    "deviceModel" : "iPhone",
+    "osVersion" : "26.3.1",
+    "screenName" : "Estimate",
+    "timestamp" : "2026-03-13T14:08:37Z"
+  },
+  "reporterNotes" : "",
+  "screenshotFilename" : "incident-20260313-070837-screenshot.jpg",
+  "title" : ""
+}
