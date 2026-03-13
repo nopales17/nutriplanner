@@ -285,6 +285,16 @@
       "checked_at": "2026-03-13"
     },
     {
+      "id": "estimate-row-geometry-probe-uses-shared-row-local-space",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "Geometry probes in `LogRowHostedView`/`LogRowCardView` now sample frames in a shared named row-local coordinate space (`log-row-probe-<rowToken>`), reducing transient seam deltas caused by table-level global reposition updates arriving before boundary-child callbacks.",
+      "files": [
+        "LogsTableViewController.swift"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
       "id": "nutriplanner-sync-root-copies-placeholder-resources",
       "status": "supported",
       "subsystem": "build-resources",

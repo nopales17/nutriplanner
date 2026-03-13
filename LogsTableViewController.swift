@@ -805,6 +805,9 @@ struct LogRowHostedView: View {
     @State private var probeRowToken: String = UUID().uuidString
     private let detailProbeSampleStride: Int = 4
     private let detailProbeTerminalThreshold: CGFloat = 0.02
+    private var probeGeometryCoordinateSpaceName: String {
+        "log-row-probe-\(probeRowToken)"
+    }
 
     private var log: MealLog? {
         for section in tableState.sections {
@@ -962,14 +965,16 @@ struct LogRowHostedView: View {
                         intrinsicDetailHeight: intrinsicDetailHeight,
                         visibleDetailHeight: visibleDetailHeight
                     )
-                }
+                },
+                geometryCoordinateSpaceName: probeGeometryCoordinateSpaceName
             )
+            .coordinateSpace(name: probeGeometryCoordinateSpaceName)
             .background(
                 GeometryReader { proxy in
                     Color.clear
                         .onAppear {
                             updateGeometryTrigger("rowContainerFrame")
-                            probeRowContainerFrame = proxy.frame(in: .global)
+                            probeRowContainerFrame = proxy.frame(in: .named(probeGeometryCoordinateSpaceName))
                             traceGeometryScopeSample(
                                 logID: log.id,
                                 renderIdentity: renderIdentity,
@@ -978,7 +983,7 @@ struct LogRowHostedView: View {
                                 isHeightAnimating: isHeightAnimating
                             )
                         }
-                        .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                        .onChange(of: proxy.frame(in: .named(probeGeometryCoordinateSpaceName))) { _, newFrame in
                             updateGeometryTrigger("rowContainerFrame")
                             probeRowContainerFrame = newFrame
                             traceGeometryScopeSample(
@@ -1192,7 +1197,7 @@ struct LogRowHostedView: View {
 
         traceHostedRow(
             "swiftui.row.geometryScopeProbe.sample",
-            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeGeometryScopeSample) rowToken=\(probeRowToken) trigger=\(probeGeometryTrigger) triggerInheritedAnimationDuration=\(triggerAnimationDuration) triggerAnimationsEnabled=\(triggerAnimationsEnabled) rowMinY=\(rowMinY) rowMaxY=\(rowMaxY) rowHeight=\(rowHeight) cardOuterMinY=\(cardOuterMinY) cardOuterMaxY=\(cardOuterMaxY) cardOuterHeight=\(cardOuterHeight) cardBorderMinY=\(cardBorderMinY) cardBorderMaxY=\(cardBorderMaxY) cardBorderHeight=\(cardBorderHeight) detailParentMinY=\(detailParentMinY) detailParentMaxY=\(detailParentMaxY) detailParentHeight=\(detailParentHeight) detailRegionMinY=\(detailRegionMinY) detailRegionMaxY=\(detailRegionMaxY) detailRegionHeight=\(detailRegionHeight) boundaryFirstChildMinY=\(firstChildMinY) boundaryFirstChildMaxY=\(firstChildMaxY) boundaryFirstChildHeight=\(firstChildHeight) editRegionMinY=\(editRegionMinY) editRegionMaxY=\(editRegionMaxY) editRegionHeight=\(editRegionHeight) belowBoundaryChildMinY=\(belowChildMinY) belowBoundaryChildMaxY=\(belowChildMaxY) belowBoundaryChildHeight=\(belowChildHeight) belowBoundaryDeltaY=\(belowDelta) parentToDetailDeltaY=\(parentToDetailDelta) firstChildToDetailDeltaY=\(firstChildToDetailDelta) belowChildToFirstChildDeltaY=\(belowChildToFirstChildDelta) boundaryTopPadding=12.000 boundaryContentSpacing=8.000 boundaryFirstChildHorizontalPadding=12.000 detailVisibleHeight=\(detailVisibleHeight) targetID=\(logID.uuidString)"
+            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeGeometryScopeSample) rowToken=\(probeRowToken) coordinateSpace=rowLocal trigger=\(probeGeometryTrigger) triggerInheritedAnimationDuration=\(triggerAnimationDuration) triggerAnimationsEnabled=\(triggerAnimationsEnabled) rowMinY=\(rowMinY) rowMaxY=\(rowMaxY) rowHeight=\(rowHeight) cardOuterMinY=\(cardOuterMinY) cardOuterMaxY=\(cardOuterMaxY) cardOuterHeight=\(cardOuterHeight) cardBorderMinY=\(cardBorderMinY) cardBorderMaxY=\(cardBorderMaxY) cardBorderHeight=\(cardBorderHeight) detailParentMinY=\(detailParentMinY) detailParentMaxY=\(detailParentMaxY) detailParentHeight=\(detailParentHeight) detailRegionMinY=\(detailRegionMinY) detailRegionMaxY=\(detailRegionMaxY) detailRegionHeight=\(detailRegionHeight) boundaryFirstChildMinY=\(firstChildMinY) boundaryFirstChildMaxY=\(firstChildMaxY) boundaryFirstChildHeight=\(firstChildHeight) editRegionMinY=\(editRegionMinY) editRegionMaxY=\(editRegionMaxY) editRegionHeight=\(editRegionHeight) belowBoundaryChildMinY=\(belowChildMinY) belowBoundaryChildMaxY=\(belowChildMaxY) belowBoundaryChildHeight=\(belowChildHeight) belowBoundaryDeltaY=\(belowDelta) parentToDetailDeltaY=\(parentToDetailDelta) firstChildToDetailDeltaY=\(firstChildToDetailDelta) belowChildToFirstChildDeltaY=\(belowChildToFirstChildDelta) boundaryTopPadding=12.000 boundaryContentSpacing=8.000 boundaryFirstChildHorizontalPadding=12.000 detailVisibleHeight=\(detailVisibleHeight) targetID=\(logID.uuidString)"
         )
     }
 
@@ -1352,6 +1357,7 @@ private struct LogRowCardView: View {
     let onDetailHeightChange: (CGFloat) -> Void
     let onDetailRevealAnimatableSample: (CGFloat, CGFloat, CGFloat?, CGFloat, CGFloat) -> Void
     let onDetailOpacityAnimatableSample: (CGFloat, CGFloat, CGFloat?, CGFloat, CGFloat) -> Void
+    let geometryCoordinateSpaceName: String
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var detailIntrinsicHeight: CGFloat = 0
@@ -1371,9 +1377,9 @@ private struct LogRowCardView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
-                                onBoundaryFirstChildFrameChange(proxy.frame(in: .global))
+                                onBoundaryFirstChildFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
                             }
-                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                            .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
                                 onBoundaryFirstChildFrameChange(newFrame)
                             }
                     }
@@ -1386,9 +1392,9 @@ private struct LogRowCardView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
-                                onBelowBoundaryChildFrameChange(proxy.frame(in: .global))
+                                onBelowBoundaryChildFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
                             }
-                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                            .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
                                 onBelowBoundaryChildFrameChange(newFrame)
                             }
                     }
@@ -1403,9 +1409,9 @@ private struct LogRowCardView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
-                                onEditRegionFrameChange(proxy.frame(in: .global))
+                                onEditRegionFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
                             }
-                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                            .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
                                 onEditRegionFrameChange(newFrame)
                             }
                     }
@@ -1508,9 +1514,9 @@ private struct LogRowCardView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
-                                onDetailRegionFrameChange(proxy.frame(in: .global))
+                                onDetailRegionFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
                             }
-                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                            .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
                                 onDetailRegionFrameChange(newFrame)
                             }
                     }
@@ -1550,9 +1556,9 @@ private struct LogRowCardView: View {
             GeometryReader { proxy in
                 Color.clear
                     .onAppear {
-                        onDetailParentFrameChange(proxy.frame(in: .global))
+                        onDetailParentFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
                     }
-                    .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                    .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
                         onDetailParentFrameChange(newFrame)
                     }
             }
@@ -1563,9 +1569,9 @@ private struct LogRowCardView: View {
             GeometryReader { proxy in
                 Color.clear
                     .onAppear {
-                        onCardBorderFrameChange(proxy.frame(in: .global))
+                        onCardBorderFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
                     }
-                    .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                    .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
                         onCardBorderFrameChange(newFrame)
                     }
             }
@@ -1574,9 +1580,9 @@ private struct LogRowCardView: View {
             GeometryReader { proxy in
                 Color.clear
                     .onAppear {
-                        onCardFrameChange(proxy.frame(in: .global))
+                        onCardFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
                     }
-                    .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                    .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
                         onCardFrameChange(newFrame)
                     }
             }
