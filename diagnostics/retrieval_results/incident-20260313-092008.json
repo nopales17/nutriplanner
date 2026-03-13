@@ -1,0 +1,34 @@
+{
+  "incident_id": "incident-20260313-092008",
+  "retrieval": {
+    "verdict": "motif_match",
+    "subsystem_candidates": [
+      "LogRowCardView sequence-context to row-local detail presence/visibility state",
+      "LogsTableViewController phase sequence context propagation for target row",
+      "LogRowHostedView replay tail sampling at expand/collapse boundary"
+    ],
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Same target row (E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0) records `probe.sequence.context` with `phaseHasPriorEdit=true`, `previousDirection=expand`, and `direction=collapse` at transitionSeq=4.",
+          "For that same transition/row, replayed top-anchor sample shows `detailVisibleHeight=620.333` at collapse boundary (probeSample=1, replay=tail) while later collapse samples for the same session show `detailVisibleHeight=0.000` (probeSample=3/4), indicating carried-over boundary state before collapse settles.",
+          "`probe.sequence.editTransition` confirms edit-sequence ordering (`transitionSeq=2` enter edit, then collapse context seq=4) that aligns the divergence with edit-first path rather than random sibling motion."
+        ],
+        "contradicting_evidence": [
+          "The retained `swiftui.row.localStateProbe.sample` is present for transitionSeq=5 with `phaseHasPriorEdit=false` and `detailPresenceState=0.000`, so direct `phaseHasPriorEdit=true` to `detailPresenceState` divergence is not captured in this single tail."
+        ],
+        "missing_evidence": [
+          "A retained `swiftui.row.localStateProbe.sample` at transitionSeq=4 with `phaseHasPriorEdit=true` for the same target row to directly confirm local `detailPresenceState` divergence."
+        ],
+        "next_discriminating_check": "Capture one more edit-first collapse tail that retains localStateProbe at transitionSeq=4; if `phaseHasPriorEdit=true` aligns with non-zero local detail presence while gate/expanded are closed, sequence/state carryover is conclusively primary."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "Remaining bug is primarily sequence/state-path driven: prior-edit sequence context carries boundary detail visibility state into collapse for the same row.",
+      "first_diverging_owner": "LogRowCardView row-local detail presence/visible-height boundary state under phase context transition seq=4"
+    },
+    "triage_policy_mode": "motif_match",
+    "next_action_mode": "Narrow directly to tentative-to-committed state promotion in the implicated subsystem."
+  }
+}

@@ -360,6 +360,17 @@
         "diagnostics/retrieval_results/.gitkeep"
       ],
       "checked_at": "2026-03-13"
+    },
+    {
+      "id": "estimate-row-edit-first-collapse-boundary-carries-detail-visibility",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "In edit-first traces, the same target row can report `phaseHasPriorEdit=true` on collapse sequence context while replayed collapse-boundary top-anchor sample still carries pre-collapse detail visibility (`detailVisibleHeight` near intrinsic) before later collapse samples settle to zero, indicating sequence-coupled boundary state carryover.",
+      "files": [
+        "LogsTableViewController.swift",
+        "diagnostics/incidents/incident-20260313-092008.md"
+      ],
+      "checked_at": "2026-03-13"
     }
   ],
   "claim_sets": {
