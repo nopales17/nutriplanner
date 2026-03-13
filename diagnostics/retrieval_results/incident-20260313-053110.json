@@ -1,0 +1,23 @@
+{
+  "incident_id": "incident-20260313-053110",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "During collapse, detail probes show interpolated channels changing every frame (`revealProgress` 0.904 -> 0.009 and `interpolatedOpacity` 0.853 -> 0.009) while render-geometry channels stay at collapsed target (`detailFrameHeightParam=0.000`, `detailVisibleHeight=0.000`, `detailOpacity=0.000`).",
+          "Animation lifecycle completes normally (`probe.collapse.end` followed by `table.afterHeightAnimation` and `animation.complete`), so animation infrastructure is active while detail-region geometry remains snapped."
+        ],
+        "contradicting_evidence": [
+          "No evidence indicates tentative-vs-committed state promotion failure; symptoms are isolated to render-time geometry interpolation.",
+          "This payload does not include synchronized outer-card/border/child scope events, so phase alignment across all scopes remains partially unobserved."
+        ],
+        "missing_evidence": [
+          "One transition capture containing row/container, outer-card shell, border path, detail boundary, and below-boundary child probes in the same frame sequence."
+        ],
+        "next_discriminating_check": "Run one collapse transition with synchronized multi-scope probes enabled and verify the earliest frame where detail boundary geometry diverges from the shared interpolated driver."
+      }
+    ]
+  }
+}

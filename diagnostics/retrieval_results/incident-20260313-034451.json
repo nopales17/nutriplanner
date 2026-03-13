@@ -1,0 +1,23 @@
+{
+  "incident_id": "incident-20260313-034451",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Incident breadcrumbs show table-level height animation lifecycle events (`animation.start` -> `animation.batch.*` -> `animation.complete`) while user-visible report says card bottom border snaps on collapse/edit transitions.",
+          "Existing repo claim (`estimate-row-detail-frame-height-is-discrete-toggle`) indicates detail reveal has used discrete target-state geometry in at least one render scope, but that does not yet establish whether row/card/detail/child scopes share one driver during the failing transitions."
+        ],
+        "contradicting_evidence": [
+          "No incident evidence indicates tentative-vs-committed business state divergence; symptoms are geometric and transition-phase specific.",
+          "Subsequent row positions animate, so at least one geometry scope is on an interpolated driver; unknown if card border and detail scopes are phase-aligned with it."
+        ],
+        "missing_evidence": [
+          "Per-frame comparative geometry samples for row/container, card border shell, detail/edit region, and children below the expansion boundary during the same transition."
+        ],
+        "next_discriminating_check": "Instrument one row render path to log synchronized per-frame geometry signals for row/container, card outer+border, detail/edit region, and below-boundary children during expand/collapse/edit transitions; then compare whether those scopes are driven by one interpolated signal or mixed discrete/interpolated drivers."
+      }
+    ]
+  }
+}
