@@ -1,0 +1,24 @@
+{
+  "incident_id": "incident-20260313-035625",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Reporter states surrounding card positions animate while the focused card border snaps, so some animation pipeline components are active."
+        ],
+        "contradicting_evidence": [
+          "state.applyUpdate logs (seq=19,30,40) show committed expanded/editing transitions for the same item ID rather than a missing promotion event.",
+          "For collapse/edit transitions, animation.schedule -> animation.start -> animation.batch.begin/end -> animation.complete all execute for affected ID E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0.",
+          "table.before/during/afterHeightAnimation runs with stable visibleMap including downstream card movement, matching report that list positions animate while border interpolation fails."
+        ],
+        "missing_evidence": [
+          "Whether the row bottom-border parameter is actually animatable/interpolated across collapse/edit state changes.",
+          "Whether row view identity is being recreated at the transition boundary, forcing a snap redraw of border geometry."
+        ],
+        "next_discriminating_check": "Capture per-frame bottom-border geometry/progress for item E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 during collapse while animation.batch is active; intermediate values falsify the render-snap hypothesis, a direct jump confirms it."
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "incident_id": "incident-20260313-042520",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "state.applyUpdate (seq=20) records a committed expanded transition from target item E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 to nil before the animation batch.",
+          "Collapse path executes animation.schedule -> animation.start -> animation.batch.begin/end -> animation.complete for the same affected ID, while surrounding row positions animate."
+        ],
+        "contradicting_evidence": [
+          "Discriminating probe during collapse logs border geometry jumping from detailVisibleHeight=620.333 (probeSample=1) to detailVisibleHeight=0.000 (probeSample=2) while animating=true and animation.batch is active, indicating snap behavior inside rendering/interpolation.",
+          "Probe rowToken remains stable (7CE9E103-25DA-4BB9-A888-799842D6E1D1) across samples in the transition window, which argues against row view identity recreation as the primary cause."
+        ],
+        "missing_evidence": [
+          "Which exact border/clip parameter in the row view lacks animatable interpolation across the collapse/edit transition."
+        ],
+        "next_discriminating_check": "Inspect the row border rendering path and log the animatable value(s) that drive the bottom-border/detail reveal each frame during collapse to identify the specific non-interpolating parameter."
+      }
+    ]
+  }
+}

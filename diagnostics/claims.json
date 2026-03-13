@@ -277,6 +277,28 @@
       "checked_at": "2026-03-13"
     }
   ],
+  "claim_sets": {
+    "canonical_motif_ids": [
+      "motif-source-of-truth-state-promotion-divergence"
+    ],
+    "historical_example_ids": [
+      "demo-pending-vs-applied-coupon-divergence-bug",
+      "demo-pending-vs-applied-delivery-promise-divergence-bug",
+      "demo-source-of-truth-state-promotion-motif"
+    ],
+    "superseded_or_deprioritized_ids": [
+      "incident-ingest-defaults-to-newest-inbox-json",
+      "incident-ingest-accepts-id-or-incident-id",
+      "incident-ingest-helper-for-iphone-export",
+      "demo-fake-bug-reset-counter",
+      "fake-bug-stages-report-prefill",
+      "simulator-helper-copies-newest-unprocessed-incident",
+      "demo-coupon-discount-integer-division-bug",
+      "demo-stale-policy-context-bug",
+      "demo-pending-vs-applied-coupon-divergence-bug",
+      "demo-pending-vs-applied-delivery-promise-divergence-bug"
+    ]
+  },
   "last_updated": "2026-03-13",
   "schema_version": 1
 }

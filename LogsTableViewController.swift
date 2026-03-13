@@ -28,6 +28,8 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private var layoutPassID: Int = 0
     private var heightCache: [UUID: CGFloat] = [:]
     private var isCollapsingAnimation = false
+    private var collapseProbeTargetID: UUID?
+    private var collapseProbeSession: Int = 0
     private var animationTraceSequence: Int = 0
 
     private var onDelete: ((UUID) -> Void)?
@@ -258,6 +260,16 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         let editingChanged = oldEditingID != payload.editingID
         let isCollapsing = expandedChanged && oldExpandedID != nil && payload.expandedID == nil
         isCollapsingAnimation = isCollapsing
+        if isCollapsing, let oldExpandedID {
+            collapseProbeTargetID = oldExpandedID
+            collapseProbeSession += 1
+            tableState.collapseProbeTargetID = oldExpandedID
+            tableState.collapseProbeSession = collapseProbeSession
+            traceAnimation(
+                "probe.collapse.arm",
+                "session=\(collapseProbeSession) target=\(oldExpandedID.uuidString) oldExpanded=\(formattedID(oldExpandedID)) newExpanded=\(formattedID(payload.expandedID))"
+            )
+        }
 
         let previousSectionIDs = previousSections.map(\.id)
         let newSectionIDs = payload.sections.map(\.id)
@@ -349,6 +361,19 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         }
         let anchor = captureScrollAnchor(for: affectedIDs)
         let animationStart = ProcessInfo.processInfo.systemUptime
+        let collapseProbeIsActive = isCollapsingAnimation
+            && collapseProbeTargetID.map { affectedIDs.contains($0) } == true
+        if collapseProbeIsActive, let target = collapseProbeTargetID {
+            tableState.collapseProbeActive = true
+            tableState.collapseProbeTargetID = target
+            tableState.collapseProbeSession = collapseProbeSession
+            traceAnimation(
+                "probe.collapse.begin",
+                "session=\(collapseProbeSession) target=\(target.uuidString) affected=\(affectedIDs.map { $0.uuidString })"
+            )
+        } else {
+            tableState.collapseProbeActive = false
+        }
         traceAnimation(
             "animation.start",
             "affected=\(affectedIDs.map { $0.uuidString }) expanded=\(formattedID(expandedID)) editing=\(formattedID(editingID)) targetMap=\(affectedIDs.map { "\($0.uuidString)->\(String(describing: indexPathForItem(id: $0)))" }) anchor=\(describe(anchor))"
@@ -401,6 +426,15 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             self.tableState.precomputedHeights = [:]
             self.refreshHeightCache(for: affectedIDs)
             self.isCollapsingAnimation = false
+            if self.tableState.collapseProbeActive {
+                self.traceAnimation(
+                    "probe.collapse.end",
+                    "session=\(self.collapseProbeSession) target=\(self.formattedID(self.collapseProbeTargetID)) elapsed=\(String(format: "%.6f", ProcessInfo.processInfo.systemUptime - animationStart))"
+                )
+            }
+            self.tableState.collapseProbeActive = false
+            self.tableState.collapseProbeTargetID = nil
+            self.collapseProbeTargetID = nil
             if !self.pendingAffectedIDs.isEmpty {
                 self.debugLog("queued animation detected, restarting")
                 self.scheduleHeightAnimation(affectedIDs: [])
@@ -420,6 +454,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private func finishHeightAnimation() {
         heightAnimator = nil
         isAnimatingHeight = false
+        tableState.collapseProbeActive = false
         debugLog("finishHeightAnimation")
     }
 
@@ -727,6 +762,9 @@ final class TableState: ObservableObject {
     @Published var editingID: UUID? = nil
     @Published var draftMeal: String = ""
     @Published var animatingIDs: Set<UUID> = []
+    @Published var collapseProbeTargetID: UUID? = nil
+    @Published var collapseProbeActive: Bool = false
+    @Published var collapseProbeSession: Int = 0
     var layoutPassID: Int = 0
     var precomputedHeights: [UUID: CGFloat] = [:]
 
@@ -744,6 +782,15 @@ final class RowIDBox: ObservableObject {
 struct LogRowHostedView: View {
     @ObservedObject var idBox: RowIDBox
     @EnvironmentObject var tableState: TableState
+    @State private var probeCardFrame: CGRect = .zero
+    @State private var probeDetailVisibleHeight: CGFloat = 0
+    @State private var probeSample: Int = 0
+    @State private var probeLastSignature: String = ""
+    @State private var probeDetailRenderSample: Int = 0
+    @State private var probeDetailRenderLastSignature: String = ""
+    @State private var probeDetailOpacitySample: Int = 0
+    @State private var probeDetailOpacityLastSignature: String = ""
+    @State private var probeRowToken: String = UUID().uuidString
 
     private var log: MealLog? {
         for section in tableState.sections {
@@ -771,7 +818,55 @@ struct LogRowHostedView: View {
                 onEdit: { tableState.onEdit(log.id) },
                 onToggleFavorite: { tableState.onToggleFavorite(log.id) },
                 onCancelEdit: { tableState.onCancelEdit() },
-                onUpdate: { tableState.onUpdate(log.id, tableState.draftMeal) }
+                onUpdate: { tableState.onUpdate(log.id, tableState.draftMeal) },
+                onCardFrameChange: { frame in
+                    probeCardFrame = frame
+                    traceCollapseBorderSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onDetailHeightChange: { height in
+                    probeDetailVisibleHeight = height
+                    traceCollapseBorderSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onDetailRevealAnimatableSample: { animatableRevealProgress, detailOpacity, frameHeightParam, intrinsicDetailHeight, visibleDetailHeight in
+                    traceCollapseDetailRenderSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating,
+                        animatableRevealProgress: animatableRevealProgress,
+                        detailOpacity: detailOpacity,
+                        frameHeightParam: frameHeightParam,
+                        intrinsicDetailHeight: intrinsicDetailHeight,
+                        visibleDetailHeight: visibleDetailHeight
+                    )
+                },
+                onDetailOpacityAnimatableSample: { interpolatedOpacity, targetOpacity, frameHeightParam, intrinsicDetailHeight, visibleDetailHeight in
+                    traceCollapseDetailOpacitySample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isEditing: isEditing,
+                        isHeightAnimating: isHeightAnimating,
+                        interpolatedOpacity: interpolatedOpacity,
+                        targetOpacity: targetOpacity,
+                        frameHeightParam: frameHeightParam,
+                        intrinsicDetailHeight: intrinsicDetailHeight,
+                        visibleDetailHeight: visibleDetailHeight
+                    )
+                }
             )
             .onAppear {
                 traceHostedRow("swiftui.row.appear", renderIdentity)
@@ -787,6 +882,21 @@ struct LogRowHostedView: View {
             }
             .onChange(of: isHeightAnimating) { _, newValue in
                 traceHostedRow("swiftui.row.animatingChanged", "\(renderIdentity) newAnimating=\(newValue)")
+            }
+            .onChange(of: tableState.collapseProbeSession) { _, _ in
+                probeSample = 0
+                probeLastSignature = ""
+                probeDetailRenderSample = 0
+                probeDetailRenderLastSignature = ""
+                probeDetailOpacitySample = 0
+                probeDetailOpacityLastSignature = ""
+            }
+            .onChange(of: tableState.collapseProbeActive) { _, isActive in
+                if !isActive {
+                    probeLastSignature = ""
+                    probeDetailRenderLastSignature = ""
+                    probeDetailOpacityLastSignature = ""
+                }
             }
         } else {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -806,6 +916,94 @@ struct LogRowHostedView: View {
 
     private func pointerString(_ object: AnyObject) -> String {
         String(describing: Unmanaged.passUnretained(object).toOpaque())
+    }
+
+    private func traceCollapseBorderSample(
+        logID: UUID,
+        renderIdentity: String,
+        isExpanded: Bool,
+        isEditing: Bool,
+        isHeightAnimating: Bool
+    ) {
+        guard tableState.collapseProbeActive else { return }
+        guard tableState.collapseProbeTargetID == logID else { return }
+        guard isHeightAnimating else { return }
+        let cardMinY = formatted(probeCardFrame.minY)
+        let cardMaxY = formatted(probeCardFrame.maxY)
+        let cardHeight = formatted(probeCardFrame.height)
+        let detailHeight = formatted(probeDetailVisibleHeight)
+        let signature = "\(cardMinY)|\(cardMaxY)|\(cardHeight)|\(detailHeight)|\(isExpanded)|\(isEditing)|\(tableState.layoutPassID)"
+        guard signature != probeLastSignature else { return }
+        probeLastSignature = signature
+        probeSample += 1
+        traceHostedRow(
+            "swiftui.row.borderProbe.sample",
+            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeSample) rowToken=\(probeRowToken) cardMinY=\(cardMinY) cardMaxY=\(cardMaxY) cardHeight=\(cardHeight) detailVisibleHeight=\(detailHeight) targetID=\(logID.uuidString)"
+        )
+    }
+
+    private func traceCollapseDetailRenderSample(
+        logID: UUID,
+        renderIdentity: String,
+        isExpanded: Bool,
+        isEditing: Bool,
+        isHeightAnimating: Bool,
+        animatableRevealProgress: CGFloat,
+        detailOpacity: CGFloat,
+        frameHeightParam: CGFloat?,
+        intrinsicDetailHeight: CGFloat,
+        visibleDetailHeight: CGFloat
+    ) {
+        guard tableState.collapseProbeActive else { return }
+        guard tableState.collapseProbeTargetID == logID else { return }
+        guard isHeightAnimating else { return }
+        let revealProgress = formatted(animatableRevealProgress)
+        let opacity = formatted(detailOpacity)
+        let frameHeight = frameHeightParam.map(formatted) ?? "nil"
+        let intrinsicHeight = formatted(intrinsicDetailHeight)
+        let visibleHeight = formatted(visibleDetailHeight)
+        let signature = "\(revealProgress)|\(opacity)|\(frameHeight)|\(intrinsicHeight)|\(visibleHeight)|\(isExpanded)|\(isEditing)|\(tableState.layoutPassID)"
+        guard signature != probeDetailRenderLastSignature else { return }
+        probeDetailRenderLastSignature = signature
+        probeDetailRenderSample += 1
+        traceHostedRow(
+            "swiftui.row.detailRenderProbe.sample",
+            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeDetailRenderSample) rowToken=\(probeRowToken) revealProgress=\(revealProgress) detailOpacity=\(opacity) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) targetID=\(logID.uuidString)"
+        )
+    }
+
+    private func traceCollapseDetailOpacitySample(
+        logID: UUID,
+        renderIdentity: String,
+        isExpanded: Bool,
+        isEditing: Bool,
+        isHeightAnimating: Bool,
+        interpolatedOpacity: CGFloat,
+        targetOpacity: CGFloat,
+        frameHeightParam: CGFloat?,
+        intrinsicDetailHeight: CGFloat,
+        visibleDetailHeight: CGFloat
+    ) {
+        guard tableState.collapseProbeActive else { return }
+        guard tableState.collapseProbeTargetID == logID else { return }
+        guard isHeightAnimating else { return }
+        let interpolated = formatted(interpolatedOpacity)
+        let target = formatted(targetOpacity)
+        let frameHeight = frameHeightParam.map(formatted) ?? "nil"
+        let intrinsicHeight = formatted(intrinsicDetailHeight)
+        let visibleHeight = formatted(visibleDetailHeight)
+        let signature = "\(interpolated)|\(target)|\(frameHeight)|\(intrinsicHeight)|\(visibleHeight)|\(isExpanded)|\(isEditing)|\(tableState.layoutPassID)"
+        guard signature != probeDetailOpacityLastSignature else { return }
+        probeDetailOpacityLastSignature = signature
+        probeDetailOpacitySample += 1
+        traceHostedRow(
+            "swiftui.row.detailOpacityProbe.sample",
+            "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(probeDetailOpacitySample) rowToken=\(probeRowToken) interpolatedOpacity=\(interpolated) targetOpacity=\(target) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) targetID=\(logID.uuidString)"
+        )
+    }
+
+    private func formatted(_ value: CGFloat) -> String {
+        String(format: "%.3f", value)
     }
 }
 
@@ -943,8 +1141,14 @@ private struct LogRowCardView: View {
     let onToggleFavorite: () -> Void
     let onCancelEdit: () -> Void
     let onUpdate: () -> Void
+    let onCardFrameChange: (CGRect) -> Void
+    let onDetailHeightChange: (CGFloat) -> Void
+    let onDetailRevealAnimatableSample: (CGFloat, CGFloat, CGFloat?, CGFloat, CGFloat) -> Void
+    let onDetailOpacityAnimatableSample: (CGFloat, CGFloat, CGFloat?, CGFloat, CGFloat) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var detailIntrinsicHeight: CGFloat = 0
+    @State private var detailVisibleHeight: CGFloat = 0
     private enum MacroTarget {
         static let calories = 2000.0
         static let protein = 50.0
@@ -1034,14 +1238,76 @@ private struct LogRowCardView: View {
             .padding(.bottom, 10)
 
             microContent
-                .opacity(isExpanded ? 1 : 0)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                detailIntrinsicHeight = proxy.size.height
+                            }
+                            .onChange(of: proxy.size.height) { _, newHeight in
+                                detailIntrinsicHeight = newHeight
+                            }
+                    }
+                )
+                .modifier(
+                    DetailOpacityAnimatableProbeModifier(
+                        opacity: isExpanded ? 1 : 0,
+                        onSample: { interpolatedOpacity in
+                            onDetailOpacityAnimatableSample(
+                                interpolatedOpacity,
+                                isExpanded ? 1 : 0,
+                                isExpanded ? nil : 0,
+                                detailIntrinsicHeight,
+                                detailVisibleHeight
+                            )
+                        }
+                    )
+                )
                 .frame(height: isExpanded ? nil : 0, alignment: .top)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                detailVisibleHeight = proxy.size.height
+                                onDetailHeightChange(proxy.size.height)
+                            }
+                            .onChange(of: proxy.size.height) { _, newHeight in
+                                detailVisibleHeight = newHeight
+                                onDetailHeightChange(newHeight)
+                            }
+                    }
+                )
                 .clipped()
                 .accessibilityHidden(!isExpanded)
+                .modifier(
+                    DetailRevealAnimatableProbeModifier(
+                        revealProgress: isExpanded ? 1 : 0,
+                        onSample: { interpolatedRevealProgress in
+                            onDetailRevealAnimatableSample(
+                                interpolatedRevealProgress,
+                                isExpanded ? 1 : 0,
+                                isExpanded ? nil : 0,
+                                detailIntrinsicHeight,
+                                detailVisibleHeight
+                            )
+                        }
+                    )
+                )
                 .animation(.easeInOut(duration: 0.25), value: isExpanded)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(cardBackground(corners: .allCorners))
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear {
+                        onCardFrameChange(proxy.frame(in: .global))
+                    }
+                    .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                        onCardFrameChange(newFrame)
+                    }
+            }
+        )
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
         .transaction {
@@ -1180,5 +1446,45 @@ private struct LogRowCardView: View {
                         lineWidth: 1
                     )
             )
+    }
+}
+
+private struct DetailRevealAnimatableProbeModifier: AnimatableModifier {
+    var revealProgress: CGFloat
+    let onSample: (CGFloat) -> Void
+
+    var animatableData: CGFloat {
+        get { revealProgress }
+        set {
+            revealProgress = newValue
+            let sample = onSample
+            DispatchQueue.main.async {
+                sample(newValue)
+            }
+        }
+    }
+
+    func body(content: Content) -> some View {
+        content
+    }
+}
+
+private struct DetailOpacityAnimatableProbeModifier: AnimatableModifier {
+    var opacity: CGFloat
+    let onSample: (CGFloat) -> Void
+
+    var animatableData: CGFloat {
+        get { opacity }
+        set {
+            opacity = newValue
+            let sample = onSample
+            DispatchQueue.main.async {
+                sample(newValue)
+            }
+        }
+    }
+
+    func body(content: Content) -> some View {
+        content.opacity(opacity)
     }
 }
