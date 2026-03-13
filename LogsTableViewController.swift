@@ -895,6 +895,7 @@ struct LogRowHostedView: View {
             let isExpanded = tableState.expandedID == log.id
             let isEditing = tableState.editingID == log.id
             let isHeightAnimating = tableState.animatingIDs.contains(log.id)
+            let shouldPinHostedCardTop = isHeightAnimating && !isExpanded
             let renderIdentity = "box=\(pointerString(idBox)) logID=\(log.id.uuidString) pass=\(tableState.layoutPassID) expanded=\(isExpanded) editing=\(isEditing) animating=\(isHeightAnimating)"
             LogRowCardView(
                 log: log,
@@ -1036,6 +1037,11 @@ struct LogRowHostedView: View {
                     )
                 },
                 geometryCoordinateSpaceName: probeGeometryCoordinateSpaceName
+            )
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: shouldPinHostedCardTop ? .infinity : nil,
+                alignment: .topLeading
             )
             .coordinateSpace(name: probeGeometryCoordinateSpaceName)
             .background(

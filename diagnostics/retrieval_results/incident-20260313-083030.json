@@ -1,0 +1,30 @@
+{
+  "incident_id": "incident-20260313-083030",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "subsystem_candidates": [
+      "LogsTableViewController hosted row/card outer container alignment (estimate-row render path)"
+    ],
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Top-anchor replay samples show `rowMinYShiftFromStart=0.000` at transition start while `cardOuterMinYShiftFromStart=310.167` and `cardOuterHeightShiftFromStart=-620.333`, indicating a render-local outer-container jump during height collapse.",
+          "In the same samples, `cardBorderMinYShiftFromStart=0.000` and `cardTopContainerMinYShiftFromStart=0.000` initially, then `cardVisibleTopEdgeMinY` moves to match `cardOuterMinY`, localizing the divergence to outer-container ownership rather than state-channel promotion.",
+          "Incident breadcrumbs show collapse state flags and completion events progressing coherently (`probe.collapse.end`, `probe.topEdge.end`, `animation.complete`), with no evidence of tentative-vs-committed model state mismatch."
+        ],
+        "contradicting_evidence": [
+          "No breadcrumb indicates business-rule/policy readers consuming stale committed state; all divergence signals are geometry-owner deltas in the hosted row/card render path."
+        ],
+        "missing_evidence": [
+          "Post-fix collapse traces confirming `cardOuterMinYShiftFromStart` remains near 0 during the transient outer-height collapse window while row-local top-edge probes stay top-anchored."
+        ],
+        "next_discriminating_check": "Apply a narrow top-leading/max-height alignment fix in `LogsTableViewController.swift` for `LogRowHostedView`/`LogRowCardView`, then rerun collapse and verify that `cardOuterMinY` no longer jumps at transition start."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "rendered top edge ownership shifts to `cardOuterMinY` because the hosted row/card outer container recenters during transient outer-height collapse",
+      "first_diverging_owner": "LogRowHostedView/LogRowCardView outer container alignment"
+    }
+  }
+}

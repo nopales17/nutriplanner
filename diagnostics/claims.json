@@ -306,6 +306,17 @@
       "checked_at": "2026-03-13"
     },
     {
+      "id": "estimate-row-visible-top-edge-follows-card-outer-during-collapse",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "Top-edge replay evidence shows `rowMinY` can remain stable while `cardOuterMinY` jumps at collapse start and the rendered visible top edge subsequently follows `cardOuterMinY`, indicating transient recentering of the hosted row/card outer container during outer-height collapse.",
+      "files": [
+        "LogsTableViewController.swift",
+        "diagnostics/incidents/incident-20260313-083030.md"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
       "id": "estimate-row-detail-opacity-owned-by-post-gate-container",
       "status": "supported",
       "subsystem": "estimate-row-render",
