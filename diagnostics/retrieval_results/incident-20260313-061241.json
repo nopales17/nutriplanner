@@ -1,0 +1,24 @@
+{
+  "incident_id": "incident-20260313-061241",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Collapse state transitions remain coherent (`expanded=false`, `animating=true`, `probe.collapse.end`), while the anomaly is isolated to geometry probe ordering at the detail boundary.",
+          "During animated samples, `detailParentMinY` and `detailRegionMinY` update to the new row position before `boundaryFirstChildMinY`; `belowBoundaryChildMinY` then updates before the first boundary child and deltas recover only after the first child catches up."
+        ],
+        "contradicting_evidence": [
+          "No breadcrumb indicates tentative-vs-committed business state divergence or stale policy reads.",
+          "The reported spacing constants (`boundaryTopPadding=12`, `boundaryContentSpacing=8`) stay constant while only absolute boundary-child frames lag transiently."
+        ],
+        "missing_evidence": [
+          "A same-pass local-coordinate probe that eliminates global-table reposition effects from callback-order effects.",
+          "Direct transaction identity correlation per probe callback (beyond inherited duration and animations-enabled flags)."
+        ],
+        "next_discriminating_check": "Run one collapse sample logging local-coordinate Y positions for detailRegion, boundaryFirstChild, and belowBoundaryChild in the same coordinate space to confirm whether divergence is true layout lag versus mixed-callback snapshot order."
+      }
+    ]
+  }
+}
