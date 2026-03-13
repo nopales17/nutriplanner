@@ -792,6 +792,8 @@ struct LogRowHostedView: View {
     @State private var probeLastSignature: String = ""
     @State private var probeDetailOpacitySample: Int = 0
     @State private var probeDetailOpacityLastSignature: String = ""
+    @State private var probeDetailPhaseSample: Int = 0
+    @State private var probeDetailPhaseLastSignature: String = ""
     @State private var probeGeometryScopeSample: Int = 0
     @State private var probeGeometryScopeLastSignature: String = ""
     @State private var probeGeometryTrigger: String = "initial"
@@ -893,6 +895,15 @@ struct LogRowHostedView: View {
                     )
                 },
                 onDetailOpacityAnimatableSample: { rawOpacity, renderedOpacity, targetOpacity, visibilityGateOpen, frameHeightParam, intrinsicDetailHeight, visibleDetailHeight, transactionDisablesAnimations, inheritedAnimationDuration, inheritedAnimationsEnabled in
+                    traceDetailPhaseSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isExpanded: isExpanded,
+                        isHeightAnimating: isHeightAnimating,
+                        detailFrameHeightParam: frameHeightParam,
+                        detailVisibilityGateOpen: visibilityGateOpen,
+                        detailTargetOpacity: targetOpacity
+                    )
                     traceCollapseDetailOpacitySample(
                         logID: log.id,
                         renderIdentity: renderIdentity,
@@ -967,6 +978,8 @@ struct LogRowHostedView: View {
                 probeLastSignature = ""
                 probeDetailOpacitySample = 0
                 probeDetailOpacityLastSignature = ""
+                probeDetailPhaseSample = 0
+                probeDetailPhaseLastSignature = ""
                 probeGeometryScopeSample = 0
                 probeGeometryScopeLastSignature = ""
             }
@@ -974,6 +987,7 @@ struct LogRowHostedView: View {
                 if !isActive {
                     probeLastSignature = ""
                     probeDetailOpacityLastSignature = ""
+                    probeDetailPhaseLastSignature = ""
                 }
             }
         } else {
@@ -1066,6 +1080,75 @@ struct LogRowHostedView: View {
             "swiftui.row.detailOpacityProbe.sample",
             "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(sampleIndex) rowToken=\(probeRowToken) rawAnimatableOpacity=\(raw) renderedOpacity=\(rendered) targetOpacity=\(target) visibilityGateOpen=\(gateOpen) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) txDisablesAnimations=\(txDisablesAnimations) inheritedAnimationDuration=\(inheritedDuration) inheritedAnimationsEnabled=\(inheritedEnabled) targetID=\(logID.uuidString)"
         )
+    }
+
+    private func traceDetailPhaseSample(
+        logID: UUID,
+        renderIdentity: String,
+        isExpanded: Bool,
+        isHeightAnimating: Bool,
+        detailFrameHeightParam: CGFloat?,
+        detailVisibilityGateOpen: Bool,
+        detailTargetOpacity: CGFloat
+    ) {
+        guard isHeightAnimating else { return }
+        let collapseProbeActive = tableState.collapseProbeActive
+        let collapseProbeTargeted = collapseProbeActive && tableState.collapseProbeTargetID == logID
+        let transitionDirection = detailTransitionDirection(
+            isExpanded: isExpanded,
+            isHeightAnimating: isHeightAnimating,
+            collapseProbeTargeted: collapseProbeTargeted
+        )
+        let detailPhase = detailPhaseLabel(
+            isExpanded: isExpanded,
+            isHeightAnimating: isHeightAnimating,
+            detailFrameHeightParam: detailFrameHeightParam,
+            detailVisibilityGateOpen: detailVisibilityGateOpen,
+            detailTargetOpacity: detailTargetOpacity
+        )
+        let frameHeight = detailFrameHeightParam.map(formatted) ?? "nil"
+        let gateOpen = detailVisibilityGateOpen ? "true" : "false"
+        let targetOpacity = formatted(detailTargetOpacity)
+        let signature = "\(isExpanded)|\(isHeightAnimating)|\(frameHeight)|\(gateOpen)|\(targetOpacity)|\(transitionDirection)|\(detailPhase)|\(collapseProbeActive)|\(collapseProbeTargeted)|\(tableState.layoutPassID)"
+        guard signature != probeDetailPhaseLastSignature else { return }
+        probeDetailPhaseLastSignature = signature
+        probeDetailPhaseSample += 1
+        traceHostedRow(
+            "swiftui.row.detailPhaseProbe.sample",
+            "\(renderIdentity) probeSample=\(probeDetailPhaseSample) rowToken=\(probeRowToken) transitionDirection=\(transitionDirection) detailPhase=\(detailPhase) isExpanded=\(isExpanded) isHeightAnimating=\(isHeightAnimating) detailFrameHeightParam=\(frameHeight) detailVisibilityGateOpen=\(gateOpen) detailTargetOpacity=\(targetOpacity) collapseProbeActive=\(collapseProbeActive) collapseProbeTargeted=\(collapseProbeTargeted) targetID=\(logID.uuidString)"
+        )
+    }
+
+    private func detailTransitionDirection(
+        isExpanded: Bool,
+        isHeightAnimating: Bool,
+        collapseProbeTargeted: Bool
+    ) -> String {
+        if !isHeightAnimating { return "none" }
+        if collapseProbeTargeted { return "collapse" }
+        return isExpanded ? "expand" : "indeterminate_nonexpanded"
+    }
+
+    private func detailPhaseLabel(
+        isExpanded: Bool,
+        isHeightAnimating: Bool,
+        detailFrameHeightParam: CGFloat?,
+        detailVisibilityGateOpen: Bool,
+        detailTargetOpacity: CGFloat
+    ) -> String {
+        if !isHeightAnimating {
+            return isExpanded ? "settled_expanded" : "settled_collapsed"
+        }
+        if detailFrameHeightParam == nil && detailVisibilityGateOpen && detailTargetOpacity > 0 {
+            return "animating_open_gate_target_visible"
+        }
+        if detailFrameHeightParam == nil && detailVisibilityGateOpen && detailTargetOpacity == 0 {
+            return "animating_open_gate_target_hidden"
+        }
+        if detailFrameHeightParam == 0 && !detailVisibilityGateOpen && detailTargetOpacity == 0 {
+            return "animating_closed_gate_target_hidden"
+        }
+        return "animating_mixed"
     }
 
     private func traceGeometryScopeSample(

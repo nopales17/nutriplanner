@@ -1,0 +1,22 @@
+{
+  "incident_id": "incident-20260313-070837",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Collapse samples show `expanded=false` while `animating=true` and `detailFrameHeightParam=nil` with `visibilityGateOpen=true`, indicating gate/frame ownership changed during active height animation.",
+          "Observed behavior after the latest fix includes both expand and collapse snapping plus temporary oversized geometry, which points to phase-misaligned render ownership rather than a single target-state mismatch."
+        ],
+        "contradicting_evidence": [
+          "No direct evidence of tentative-vs-committed business-state channel divergence; symptoms are constrained to row detail render/geometry phase behavior."
+        ],
+        "missing_evidence": [
+          "A single phase-labeled probe stream that records transition direction (expand/collapse) alongside `isExpanded`, `isHeightAnimating`, `detailFrameHeight`, `detailVisibilityGateOpen`, and `detailTargetOpacity` at the detail render owner."
+        ],
+        "next_discriminating_check": "At `LogRowCardView` detail render ownership, log a compact phase snapshot keyed by transition direction to determine whether gate/frame ownership should be collapse-only, phase-aware, or driven by an explicit animated scalar."
+      }
+    ]
+  }
+}
