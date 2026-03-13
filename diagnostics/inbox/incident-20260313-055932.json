@@ -1,0 +1,268 @@
+{
+  "actualBehavior" : "",
+  "breadcrumbs" : [
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.484381 seq=26 event=animation.batch.begin affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] bottomAnchored=false offset=(0.0, -18.0)",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.509931 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=1 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=859.333 rowMaxY=1021.333 rowHeight=162.000 cardOuterMinY=555.167 cardOuterMaxY=1325.500 cardOuterHeight=770.333 cardBorderMinY=555.167 cardBorderMaxY=1325.500 cardBorderHeight=770.333 detailRegionMinY=705.167 detailRegionMaxY=1325.500 detailRegionHeight=620.333 editRegionMinY=555.167 editRegionMaxY=634.833 editRegionHeight=79.667 belowBoundaryChildMinY=751.500 belowBoundaryChildMaxY=1313.500 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=620.333 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.510265 event=swiftui.row.borderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=1 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B cardMinY=865.333 cardMaxY=1015.333 cardHeight=150.000 detailVisibleHeight=620.333 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.510516 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=2 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=859.333 rowMaxY=1021.333 rowHeight=162.000 cardOuterMinY=865.333 cardOuterMaxY=1015.333 cardOuterHeight=150.000 cardBorderMinY=555.167 cardBorderMaxY=1325.500 cardBorderHeight=770.333 detailRegionMinY=705.167 detailRegionMaxY=1325.500 detailRegionHeight=620.333 editRegionMinY=555.167 editRegionMaxY=634.833 editRegionHeight=79.667 belowBoundaryChildMinY=751.500 belowBoundaryChildMaxY=1313.500 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=620.333 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.510737 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=3 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=859.333 rowMaxY=1021.333 rowHeight=162.000 cardOuterMinY=865.333 cardOuterMaxY=1015.333 cardOuterHeight=150.000 cardBorderMinY=865.333 cardBorderMaxY=1015.333 cardBorderHeight=150.000 detailRegionMinY=705.167 detailRegionMaxY=1325.500 detailRegionHeight=620.333 editRegionMinY=555.167 editRegionMaxY=634.833 editRegionHeight=79.667 belowBoundaryChildMinY=751.500 belowBoundaryChildMaxY=1313.500 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=620.333 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.510916 event=swiftui.row.borderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=2 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B cardMinY=865.333 cardMaxY=1015.333 cardHeight=150.000 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.511121 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=4 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=859.333 rowMaxY=1021.333 rowHeight=162.000 cardOuterMinY=865.333 cardOuterMaxY=1015.333 cardOuterHeight=150.000 cardBorderMinY=865.333 cardBorderMaxY=1015.333 cardBorderHeight=150.000 detailRegionMinY=705.167 detailRegionMaxY=1325.500 detailRegionHeight=620.333 editRegionMinY=555.167 editRegionMaxY=634.833 editRegionHeight=79.667 belowBoundaryChildMinY=751.500 belowBoundaryChildMaxY=1313.500 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.511332 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=5 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=859.333 rowMaxY=1021.333 rowHeight=162.000 cardOuterMinY=865.333 cardOuterMaxY=1015.333 cardOuterHeight=150.000 cardBorderMinY=865.333 cardBorderMaxY=1015.333 cardBorderHeight=150.000 detailRegionMinY=1015.333 detailRegionMaxY=1015.333 detailRegionHeight=0.000 editRegionMinY=555.167 editRegionMaxY=634.833 editRegionHeight=79.667 belowBoundaryChildMinY=751.500 belowBoundaryChildMaxY=1313.500 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=-263.833 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.511538 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=6 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=859.333 rowMaxY=1021.333 rowHeight=162.000 cardOuterMinY=865.333 cardOuterMaxY=1015.333 cardOuterHeight=150.000 cardBorderMinY=865.333 cardBorderMaxY=1015.333 cardBorderHeight=150.000 detailRegionMinY=1015.333 detailRegionMaxY=1015.333 detailRegionHeight=0.000 editRegionMinY=555.167 editRegionMaxY=634.833 editRegionHeight=79.667 belowBoundaryChildMinY=1061.667 belowBoundaryChildMaxY=1623.667 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.511747 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=7 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=859.333 rowMaxY=1021.333 rowHeight=162.000 cardOuterMinY=865.333 cardOuterMaxY=1015.333 cardOuterHeight=150.000 cardBorderMinY=865.333 cardBorderMaxY=1015.333 cardBorderHeight=150.000 detailRegionMinY=1015.333 detailRegionMaxY=1015.333 detailRegionHeight=0.000 editRegionMinY=865.333 editRegionMaxY=945.000 editRegionHeight=79.667 belowBoundaryChildMinY=1061.667 belowBoundaryChildMaxY=1623.667 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.511907 event=swiftui.row.expandedChanged box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true newExpanded=false",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.512054 event=swiftui.row.animatingChanged box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true newAnimating=true",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.516636 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=1 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=859.333 rowMaxY=1021.333 rowHeight=162.000 cardOuterMinY=865.333 cardOuterMaxY=1015.333 cardOuterHeight=150.000 cardBorderMinY=865.333 cardBorderMaxY=1015.333 cardBorderHeight=150.000 detailRegionMinY=1015.333 detailRegionMaxY=1015.333 detailRegionHeight=0.000 editRegionMinY=865.333 editRegionMaxY=945.000 editRegionHeight=79.667 belowBoundaryChildMinY=1061.667 belowBoundaryChildMaxY=1623.667 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.521019 event=cell.prepareForReuse cell=0x000000013d3aed00 previousID=232A3930-5F2B-421C-B8D1-E36386813362 host=0x000000013d3af200",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.521217 event=cell.configure cell=0x000000013d3aed00 previousID=nil newID=232A3930-5F2B-421C-B8D1-E36386813362 host=0x000000013d3af200 idBox=0x000000013d534750",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.525201 seq=27 event=cell.willDisplay index=0:1 itemID=83C1F15D-8B0F-40E1-A6B0-8262A5BC2E64 cell=0x000000013d3ae300 reuseID=HostingLogCell height=162.0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.531581 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=2 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=549.000 rowMaxY=711.000 rowHeight=162.000 cardOuterMinY=865.333 cardOuterMaxY=1015.333 cardOuterHeight=150.000 cardBorderMinY=865.333 cardBorderMaxY=1015.333 cardBorderHeight=150.000 detailRegionMinY=1015.333 detailRegionMaxY=1015.333 detailRegionHeight=0.000 editRegionMinY=865.333 editRegionMaxY=945.000 editRegionHeight=79.667 belowBoundaryChildMinY=1061.667 belowBoundaryChildMaxY=1623.667 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.531726 event=swiftui.row.borderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=1 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B cardMinY=555.000 cardMaxY=705.000 cardHeight=150.000 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.531886 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=3 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=549.000 rowMaxY=711.000 rowHeight=162.000 cardOuterMinY=555.000 cardOuterMaxY=705.000 cardOuterHeight=150.000 cardBorderMinY=865.333 cardBorderMaxY=1015.333 cardBorderHeight=150.000 detailRegionMinY=1015.333 detailRegionMaxY=1015.333 detailRegionHeight=0.000 editRegionMinY=865.333 editRegionMaxY=945.000 editRegionHeight=79.667 belowBoundaryChildMinY=1061.667 belowBoundaryChildMaxY=1623.667 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.532046 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=4 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=549.000 rowMaxY=711.000 rowHeight=162.000 cardOuterMinY=555.000 cardOuterMaxY=705.000 cardOuterHeight=150.000 cardBorderMinY=555.000 cardBorderMaxY=705.000 cardBorderHeight=150.000 detailRegionMinY=1015.333 detailRegionMaxY=1015.333 detailRegionHeight=0.000 editRegionMinY=865.333 editRegionMaxY=945.000 editRegionHeight=79.667 belowBoundaryChildMinY=1061.667 belowBoundaryChildMaxY=1623.667 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.532206 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=5 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=549.000 rowMaxY=711.000 rowHeight=162.000 cardOuterMinY=555.000 cardOuterMaxY=705.000 cardOuterHeight=150.000 cardBorderMinY=555.000 cardBorderMaxY=705.000 cardBorderHeight=150.000 detailRegionMinY=705.000 detailRegionMaxY=705.000 detailRegionHeight=0.000 editRegionMinY=865.333 editRegionMaxY=945.000 editRegionHeight=79.667 belowBoundaryChildMinY=1061.667 belowBoundaryChildMaxY=1623.667 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=356.667 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.532364 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=6 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=549.000 rowMaxY=711.000 rowHeight=162.000 cardOuterMinY=555.000 cardOuterMaxY=705.000 cardOuterHeight=150.000 cardBorderMinY=555.000 cardBorderMaxY=705.000 cardBorderHeight=150.000 detailRegionMinY=705.000 detailRegionMaxY=705.000 detailRegionHeight=0.000 editRegionMinY=865.333 editRegionMaxY=945.000 editRegionHeight=79.667 belowBoundaryChildMinY=751.333 belowBoundaryChildMaxY=1313.333 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.532522 event=swiftui.row.geometryScopeProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=7 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B rowMinY=549.000 rowMaxY=711.000 rowHeight=162.000 cardOuterMinY=555.000 cardOuterMaxY=705.000 cardOuterHeight=150.000 cardBorderMinY=555.000 cardBorderMaxY=705.000 cardBorderHeight=150.000 detailRegionMinY=705.000 detailRegionMaxY=705.000 detailRegionHeight=0.000 editRegionMinY=555.000 editRegionMaxY=634.667 editRegionHeight=79.667 belowBoundaryChildMinY=751.333 belowBoundaryChildMaxY=1313.333 belowBoundaryChildHeight=562.000 belowBoundaryDeltaY=46.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.533799 seq=28 event=animation.batch.end elapsed=0.049426 contentSize=(393.0, 6142.666687011719)",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.534251 seq=29 event=table.duringHeightAnimation expanded=nil editing=nil expandedIndex=nil editingIndex=nil visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\", \"0:1<->83C1F15D-8B0F-40E1-A6B0-8262A5BC2E64\"]",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.535374 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=1 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=1.000 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.535501 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=1 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=1.000 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.572469 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=2 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=0.991 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.572642 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=2 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=0.991 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.610749 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=4 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=0.904 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.611060 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=4 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=0.904 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.649837 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=8 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=0.720 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.650443 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=8 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=0.720 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.682857 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=12 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=0.500 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.683125 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=12 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=0.500 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.715516 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=16 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=0.280 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.716186 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=16 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=0.280 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.748914 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=20 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=0.112 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.749484 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=20 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=0.112 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.782071 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=24 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=0.020 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.782687 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=24 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=0.020 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.790397 event=swiftui.row.detailOpacityProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=25 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B interpolatedOpacity=0.009 targetOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.790989 event=swiftui.row.detailRenderProbe.sample box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=true probeSession=1 probeSample=25 rowToken=5D07E223-F786-48CC-85D5-D56A71708F0B revealProgress=0.009 detailOpacity=0.000 detailFrameHeightParam=0.000 detailIntrinsicHeight=620.333 detailVisibleHeight=0.000 targetID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.791837 seq=30 event=probe.collapse.end session=1 target=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 elapsed=0.308246",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.792418 seq=31 event=table.afterHeightAnimation expanded=nil editing=nil expandedIndex=nil editingIndex=nil visibleMap=[\"0:0<->E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\", \"0:1<->83C1F15D-8B0F-40E1-A6B0-8262A5BC2E64\"]",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.792701 seq=32 event=animation.complete elapsed=0.309094 affected=[\"E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0\"] expanded=nil expandedIndex=nil",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55213.806847 event=swiftui.row.animatingChanged box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=false newAnimating=false",
+      "timestamp" : "2026-03-13T12:59:29Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55215.882380 event=swiftui.row.disappear box=0x000000013d534c90 logID=83C1F15D-8B0F-40E1-A6B0-8262A5BC2E64 pass=2 expanded=false editing=false animating=false",
+      "timestamp" : "2026-03-13T12:59:31Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55215.882761 event=swiftui.row.disappear box=0x000000013d534750 logID=232A3930-5F2B-421C-B8D1-E36386813362 pass=2 expanded=false editing=false animating=false",
+      "timestamp" : "2026-03-13T12:59:31Z"
+    },
+    {
+      "category" : "log-animation",
+      "message" : "t=55215.882979 event=swiftui.row.disappear box=0x000000013d138390 logID=E9905B91-621C-4DA3-AF30-EF8E0EE9C6B0 pass=2 expanded=false editing=false animating=false",
+      "timestamp" : "2026-03-13T12:59:31Z"
+    }
+  ],
+  "expectedBehavior" : "",
+  "id" : "incident-20260313-055932",
+  "metadata" : {
+    "appVersion" : "1.0",
+    "buildNumber" : "1",
+    "deviceModel" : "iPhone",
+    "osVersion" : "26.3.1",
+    "screenName" : "Estimate",
+    "timestamp" : "2026-03-13T12:59:32Z"
+  },
+  "reporterNotes" : "",
+  "screenshotFilename" : "incident-20260313-055932-screenshot.jpg",
+  "title" : ""
+}
