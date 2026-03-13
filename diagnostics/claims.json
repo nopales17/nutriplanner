@@ -275,6 +275,16 @@
       "checked_at": "2026-03-13"
     },
     {
+      "id": "estimate-row-detail-region-probe-must-be-post-gate",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "In `LogRowCardView`, attaching `onDetailRegionFrameChange` before the collapse `.frame(height: isExpanded ? nil : 0)` measures intrinsic detail geometry and can report a large `detailRegionHeight` even when visible detail height is zero; attach this probe at the post-gate outer detail container to align region geometry with collapse state.",
+      "files": [
+        "LogsTableViewController.swift"
+      ],
+      "checked_at": "2026-03-13"
+    },
+    {
       "id": "nutriplanner-sync-root-copies-placeholder-resources",
       "status": "supported",
       "subsystem": "build-resources",

@@ -1417,17 +1417,6 @@ private struct LogRowCardView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
-                                onDetailRegionFrameChange(proxy.frame(in: .global))
-                            }
-                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
-                                onDetailRegionFrameChange(newFrame)
-                            }
-                    }
-                )
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onAppear {
                                 detailIntrinsicHeight = proxy.size.height
                             }
                             .onChange(of: proxy.size.height) { _, newHeight in
@@ -1450,6 +1439,17 @@ private struct LogRowCardView: View {
                     )
                 )
                 .frame(height: isExpanded ? nil : 0, alignment: .top)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                onDetailRegionFrameChange(proxy.frame(in: .global))
+                            }
+                            .onChange(of: proxy.frame(in: .global)) { _, newFrame in
+                                onDetailRegionFrameChange(newFrame)
+                            }
+                    }
+                )
                 .background(
                     GeometryReader { proxy in
                         Color.clear

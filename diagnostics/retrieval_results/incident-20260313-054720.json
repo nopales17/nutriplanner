@@ -1,0 +1,23 @@
+{
+  "incident_id": "incident-20260313-054720",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Geometry probes show row/container, card outer, and card border converge while divergence starts at detailRegion geometry (`detailRegionHeight` remains large).",
+          "Detail probes repeatedly report `detailVisibleHeight=0.000` and `detailFrameHeightParam=0.000` during collapse while `detailIntrinsicHeight` stays 620.333, indicating the collapse gate is applied too low/late in the detail subtree."
+        ],
+        "contradicting_evidence": [
+          "No incident evidence indicates tentative-vs-committed state promotion mismatch; state transitions (`expandedChanged`, `animatingChanged`, `probe.collapse.end`) occur as expected.",
+          "Symptoms are localized to render-time detail-region layout geometry rather than business/policy state channels."
+        ],
+        "missing_evidence": [
+          "A direct code-path confirmation of where the outer detail-region container applies frame-height gating relative to the visible detail gate."
+        ],
+        "next_discriminating_check": "Inspect the estimate-row detail-region container in `LogsTableViewController.swift` and verify whether the outer container frame remains ungated while only inner visible detail applies `.frame(height: ...)` collapse."
+      }
+    ]
+  }
+}
