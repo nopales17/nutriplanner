@@ -841,6 +841,7 @@ struct LogRowHostedView: View {
     @EnvironmentObject var tableState: TableState
     @State private var probeCardFrame: CGRect = .zero
     @State private var probeCardBorderFrame: CGRect = .zero
+    @State private var probeCardVisibleTopEdgeFrame: CGRect = .zero
     @State private var probeCardTopContainerFrame: CGRect = .zero
     @State private var probeRowContainerFrame: CGRect = .zero
     @State private var probeDetailRegionFrame: CGRect = .zero
@@ -864,6 +865,7 @@ struct LogRowHostedView: View {
     @State private var probeTopEdgeBaselineRowMinY: CGFloat? = nil
     @State private var probeTopEdgeBaselineCardOuterMinY: CGFloat? = nil
     @State private var probeTopEdgeBaselineCardBorderMinY: CGFloat? = nil
+    @State private var probeTopEdgeBaselineCardVisibleTopEdgeMinY: CGFloat? = nil
     @State private var probeTopEdgeBaselineCardTopContainerMinY: CGFloat? = nil
     @State private var probeTopEdgeBaselineCardOuterHeight: CGFloat? = nil
     @State private var probeTopEdgeBaselineDetailVisibleHeight: CGFloat? = nil
@@ -925,6 +927,15 @@ struct LogRowHostedView: View {
                 onCardBorderFrameChange: { frame in
                     updateGeometryTrigger("cardBorderFrame")
                     probeCardBorderFrame = frame
+                    traceTopEdgeAnchorSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                },
+                onCardVisibleTopEdgeFrameChange: { frame in
+                    updateGeometryTrigger("cardVisibleTopEdgeFrame")
+                    probeCardVisibleTopEdgeFrame = frame
                     traceTopEdgeAnchorSample(
                         logID: log.id,
                         renderIdentity: renderIdentity,
@@ -1101,6 +1112,7 @@ struct LogRowHostedView: View {
                 probeTopEdgeBaselineRowMinY = nil
                 probeTopEdgeBaselineCardOuterMinY = nil
                 probeTopEdgeBaselineCardBorderMinY = nil
+                probeTopEdgeBaselineCardVisibleTopEdgeMinY = nil
                 probeTopEdgeBaselineCardTopContainerMinY = nil
                 probeTopEdgeBaselineCardOuterHeight = nil
                 probeTopEdgeBaselineDetailVisibleHeight = nil
@@ -1339,10 +1351,12 @@ struct LogRowHostedView: View {
         guard isHeightAnimating else { return }
         guard probeTopEdgeSample < topEdgeProbeMaxSamples else { return }
         guard probeCardFrame.height > 0 else { return }
+        guard probeCardVisibleTopEdgeFrame.height > 0 else { return }
 
         let rowMinYValue = probeRowContainerFrame.minY
         let cardOuterMinYValue = probeCardFrame.minY
         let cardBorderMinYValue = probeCardBorderFrame.minY
+        let cardVisibleTopEdgeMinYValue = probeCardVisibleTopEdgeFrame.minY
         let cardTopContainerMinYValue = probeCardTopContainerFrame.minY
         let cardOuterHeightValue = probeCardFrame.height
         let detailVisibleHeightValue = probeDetailVisibleHeight
@@ -1351,6 +1365,7 @@ struct LogRowHostedView: View {
             probeTopEdgeBaselineRowMinY = rowMinYValue
             probeTopEdgeBaselineCardOuterMinY = cardOuterMinYValue
             probeTopEdgeBaselineCardBorderMinY = cardBorderMinYValue
+            probeTopEdgeBaselineCardVisibleTopEdgeMinY = cardVisibleTopEdgeMinYValue
             probeTopEdgeBaselineCardTopContainerMinY = cardTopContainerMinYValue
             probeTopEdgeBaselineCardOuterHeight = cardOuterHeightValue
             probeTopEdgeBaselineDetailVisibleHeight = detailVisibleHeightValue
@@ -1359,6 +1374,7 @@ struct LogRowHostedView: View {
         let baselineRowMinY = probeTopEdgeBaselineRowMinY ?? rowMinYValue
         let baselineCardOuterMinY = probeTopEdgeBaselineCardOuterMinY ?? cardOuterMinYValue
         let baselineCardBorderMinY = probeTopEdgeBaselineCardBorderMinY ?? cardBorderMinYValue
+        let baselineCardVisibleTopEdgeMinY = probeTopEdgeBaselineCardVisibleTopEdgeMinY ?? cardVisibleTopEdgeMinYValue
         let baselineCardTopContainerMinY = probeTopEdgeBaselineCardTopContainerMinY ?? cardTopContainerMinYValue
         let baselineCardOuterHeight = probeTopEdgeBaselineCardOuterHeight ?? cardOuterHeightValue
         let baselineDetailVisibleHeight = probeTopEdgeBaselineDetailVisibleHeight ?? detailVisibleHeightValue
@@ -1366,6 +1382,7 @@ struct LogRowHostedView: View {
         let rowMinYShiftFromStart = rowMinYValue - baselineRowMinY
         let cardOuterMinYShiftFromStart = cardOuterMinYValue - baselineCardOuterMinY
         let cardBorderMinYShiftFromStart = cardBorderMinYValue - baselineCardBorderMinY
+        let cardVisibleTopEdgeMinYShiftFromStart = cardVisibleTopEdgeMinYValue - baselineCardVisibleTopEdgeMinY
         let cardTopContainerMinYShiftFromStart = cardTopContainerMinYValue - baselineCardTopContainerMinY
         let cardOuterHeightShiftFromStart = cardOuterHeightValue - baselineCardOuterHeight
         let detailVisibleHeightShiftFromStart = detailVisibleHeightValue - baselineDetailVisibleHeight
@@ -1373,15 +1390,20 @@ struct LogRowHostedView: View {
         let rowMinY = formatted(rowMinYValue)
         let cardOuterMinY = formatted(cardOuterMinYValue)
         let cardBorderMinY = formatted(cardBorderMinYValue)
+        let cardVisibleTopEdgeMinY = formatted(cardVisibleTopEdgeMinYValue)
         let cardTopContainerMinY = formatted(cardTopContainerMinYValue)
         let cardOuterHeight = formatted(cardOuterHeightValue)
         let detailVisibleHeight = formatted(detailVisibleHeightValue)
         let rowToCardOuterTopDelta = formatted(cardOuterMinYValue - rowMinYValue)
         let outerToBorderTopDelta = formatted(cardBorderMinYValue - cardOuterMinYValue)
+        let visibleTopEdgeToOuterTopDelta = formatted(cardVisibleTopEdgeMinYValue - cardOuterMinYValue)
+        let visibleTopEdgeToBorderTopDelta = formatted(cardVisibleTopEdgeMinYValue - cardBorderMinYValue)
+        let visibleTopEdgeToTopContainerTopDelta = formatted(cardVisibleTopEdgeMinYValue - cardTopContainerMinYValue)
         let outerToTopContainerTopDelta = formatted(cardTopContainerMinYValue - cardOuterMinYValue)
         let rowShift = formatted(rowMinYShiftFromStart)
         let cardOuterShift = formatted(cardOuterMinYShiftFromStart)
         let cardBorderShift = formatted(cardBorderMinYShiftFromStart)
+        let cardVisibleTopEdgeShift = formatted(cardVisibleTopEdgeMinYShiftFromStart)
         let cardTopContainerShift = formatted(cardTopContainerMinYShiftFromStart)
         let cardOuterHeightShift = formatted(cardOuterHeightShiftFromStart)
         let detailVisibleHeightShift = formatted(detailVisibleHeightShiftFromStart)
@@ -1391,13 +1413,13 @@ struct LogRowHostedView: View {
             ? "true"
             : "false"
         let direction = tableState.topEdgeProbeDirection
-        let signature = "\(rowMinY)|\(cardOuterMinY)|\(cardBorderMinY)|\(cardTopContainerMinY)|\(cardOuterHeight)|\(detailVisibleHeight)|\(rowShift)|\(cardOuterShift)|\(cardBorderShift)|\(cardTopContainerShift)|\(cardOuterHeightShift)|\(detailVisibleHeightShift)|\(direction)|\(probeGeometryTrigger)|\(tableState.layoutPassID)"
+        let signature = "\(rowMinY)|\(cardOuterMinY)|\(cardBorderMinY)|\(cardVisibleTopEdgeMinY)|\(cardTopContainerMinY)|\(cardOuterHeight)|\(detailVisibleHeight)|\(rowShift)|\(cardOuterShift)|\(cardBorderShift)|\(cardVisibleTopEdgeShift)|\(cardTopContainerShift)|\(cardOuterHeightShift)|\(detailVisibleHeightShift)|\(direction)|\(probeGeometryTrigger)|\(tableState.layoutPassID)"
         guard signature != probeTopEdgeLastSignature else { return }
         probeTopEdgeLastSignature = signature
         probeTopEdgeSample += 1
         captureTopEdgeBeginReplayMessageIfNeeded(logID: logID)
         let sampleMessage =
-            "\(renderIdentity) probeSession=\(tableState.topEdgeProbeSession) probeSample=\(probeTopEdgeSample) probeSampleLimit=\(topEdgeProbeMaxSamples) rowToken=\(probeRowToken) coordinateSpace=rowLocal direction=\(direction) trigger=\(probeGeometryTrigger) rowMinY=\(rowMinY) cardOuterMinY=\(cardOuterMinY) cardBorderMinY=\(cardBorderMinY) cardTopContainerMinY=\(cardTopContainerMinY) cardOuterHeight=\(cardOuterHeight) detailVisibleHeight=\(detailVisibleHeight) rowToCardOuterTopDeltaY=\(rowToCardOuterTopDelta) outerToBorderTopDeltaY=\(outerToBorderTopDelta) outerToTopContainerTopDeltaY=\(outerToTopContainerTopDelta) rowMinYShiftFromStart=\(rowShift) cardOuterMinYShiftFromStart=\(cardOuterShift) cardBorderMinYShiftFromStart=\(cardBorderShift) cardTopContainerMinYShiftFromStart=\(cardTopContainerShift) cardOuterHeightShiftFromStart=\(cardOuterHeightShift) detailVisibleHeightShiftFromStart=\(detailVisibleHeightShift) topEdgeMovedBeforeHeightSettles=\(topEdgeMovedBeforeHeightSettles) targetID=\(logID.uuidString)"
+            "\(renderIdentity) probeSession=\(tableState.topEdgeProbeSession) probeSample=\(probeTopEdgeSample) probeSampleLimit=\(topEdgeProbeMaxSamples) rowToken=\(probeRowToken) coordinateSpace=rowLocal direction=\(direction) trigger=\(probeGeometryTrigger) rowMinY=\(rowMinY) cardOuterMinY=\(cardOuterMinY) cardBorderMinY=\(cardBorderMinY) cardVisibleTopEdgeMinY=\(cardVisibleTopEdgeMinY) cardTopContainerMinY=\(cardTopContainerMinY) cardOuterHeight=\(cardOuterHeight) detailVisibleHeight=\(detailVisibleHeight) rowToCardOuterTopDeltaY=\(rowToCardOuterTopDelta) outerToBorderTopDeltaY=\(outerToBorderTopDelta) visibleTopEdgeToOuterTopDeltaY=\(visibleTopEdgeToOuterTopDelta) visibleTopEdgeToBorderTopDeltaY=\(visibleTopEdgeToBorderTopDelta) visibleTopEdgeToTopContainerTopDeltaY=\(visibleTopEdgeToTopContainerTopDelta) outerToTopContainerTopDeltaY=\(outerToTopContainerTopDelta) rowMinYShiftFromStart=\(rowShift) cardOuterMinYShiftFromStart=\(cardOuterShift) cardBorderMinYShiftFromStart=\(cardBorderShift) cardVisibleTopEdgeMinYShiftFromStart=\(cardVisibleTopEdgeShift) cardTopContainerMinYShiftFromStart=\(cardTopContainerShift) cardOuterHeightShiftFromStart=\(cardOuterHeightShift) detailVisibleHeightShiftFromStart=\(detailVisibleHeightShift) topEdgeMovedBeforeHeightSettles=\(topEdgeMovedBeforeHeightSettles) targetID=\(logID.uuidString)"
         if probeTopEdgeEarlySampleMessages.count < topEdgeProbeReplaySampleCount {
             probeTopEdgeEarlySampleMessages.append(sampleMessage)
         }
@@ -1576,6 +1598,7 @@ private struct LogRowCardView: View {
     let onUpdate: () -> Void
     let onCardFrameChange: (CGRect) -> Void
     let onCardBorderFrameChange: (CGRect) -> Void
+    let onCardVisibleTopEdgeFrameChange: (CGRect) -> Void
     let onCardTopContainerFrameChange: (CGRect) -> Void
     let onDetailRegionFrameChange: (CGRect) -> Void
     let onBoundaryFirstChildFrameChange: (CGRect) -> Void
@@ -1950,6 +1973,21 @@ private struct LogRowCardView: View {
                         }
                 }
             )
+            .overlay(alignment: .top) {
+                Color.clear
+                    .frame(height: 1)
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear {
+                                    onCardVisibleTopEdgeFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
+                                }
+                                .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
+                                    onCardVisibleTopEdgeFrameChange(newFrame)
+                                }
+                        }
+                    )
+            }
     }
 }
 

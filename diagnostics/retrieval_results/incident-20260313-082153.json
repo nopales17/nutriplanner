@@ -1,0 +1,29 @@
+{
+  "incident_id": "incident-20260313-082153",
+  "retrieval": {
+    "verdict": "ambiguous",
+    "subsystem_candidates": [
+      "LogsTableViewController top-edge owner probe (estimate-row render path)"
+    ],
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Transition-start replay now captures first 1-3 top-edge samples, but current metrics still leave ownership ambiguous between cardOuter/cardBorder and cardTopContainer.",
+          "Existing collapse traces show cardOuter/cardBorder moving in retained samples while cardTopContainer can appear stable in early replay, leaving the user-visible top-edge owner unresolved."
+        ],
+        "contradicting_evidence": [
+          "Current probe fields do not include an explicit row-local signal for the rendered visible top border edge itself."
+        ],
+        "missing_evidence": [
+          "A row-local visible-top-edge signal that can be compared directly against cardOuterMinY, cardBorderMinY, and cardTopContainerMinY during first 1-3 post-start samples."
+        ],
+        "next_discriminating_check": "Add one visible-top-edge probe signal in LogsTableViewController.swift and include it in topAnchorProbe samples/replay to determine which geometry owner matches the rendered top boundary."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "first mover of rendered top boundary is unresolved between cardOuter/cardBorder and cardTopContainer",
+      "first_diverging_owner": "undetermined"
+    }
+  }
+}
