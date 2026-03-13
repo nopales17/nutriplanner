@@ -36,9 +36,11 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private var animationTraceSequence: Int = 0
     private var phaseTransitionSequence: Int = 0
     private var rowLastEditSequence: [UUID: Int] = [:]
+    private var rowLastEditTransitionMessage: [UUID: String] = [:]
     private var rowExpandCollapseRunCount: [UUID: Int] = [:]
     private var rowLastExpandCollapseSequence: [UUID: Int] = [:]
     private var rowLastExpandCollapseDirection: [UUID: String] = [:]
+    private var rowLastSequenceContextMessage: [UUID: String] = [:]
     private var siblingProbeSession: Int = 0
     private var siblingProbeDisplayLink: CADisplayLink?
     private var siblingProbeState: SiblingProbeState?
@@ -286,9 +288,15 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             if let newEditingID = payload.editingID {
                 rowLastEditSequence[newEditingID] = transitionSequence
             }
+            let editTransitionMessage =
+                "transitionSeq=\(transitionSequence) oldEditing=\(formattedID(oldEditingID)) newEditing=\(formattedID(payload.editingID)) oldExpanded=\(formattedID(oldExpandedID)) newExpanded=\(formattedID(payload.expandedID))"
+            let replayTargets = Set([oldEditingID, payload.editingID, oldExpandedID, payload.expandedID].compactMap { $0 })
+            for targetID in replayTargets {
+                rowLastEditTransitionMessage[targetID] = editTransitionMessage
+            }
             traceAnimation(
                 "probe.sequence.editTransition",
-                "transitionSeq=\(transitionSequence) oldEditing=\(formattedID(oldEditingID)) newEditing=\(formattedID(payload.editingID)) oldExpanded=\(formattedID(oldExpandedID)) newExpanded=\(formattedID(payload.expandedID))"
+                editTransitionMessage
             )
         }
         let isCollapsing = expandedChanged && oldExpandedID != nil && payload.expandedID == nil
@@ -340,9 +348,12 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                 tableState.phaseProbeHasPriorEdit = hasPriorEdit
                 tableState.phaseProbeEditDelta = editDelta
                 tableState.phaseProbeEditActiveForTarget = editActiveForTarget
+                let sequenceContextMessage =
+                    "transitionSeq=\(transitionSequence) target=\(targetID.uuidString) direction=\(direction) runOrdinal=\(runOrdinal) previousDirection=\(previousDirection) previousTransitionSeq=\(previousTransition) priorEditSeq=\(priorEditSequence) hasPriorEdit=\(hasPriorEdit) editDelta=\(editDelta) editActiveForTarget=\(editActiveForTarget)"
+                rowLastSequenceContextMessage[targetID] = sequenceContextMessage
                 traceAnimation(
                     "probe.sequence.context",
-                    "transitionSeq=\(transitionSequence) target=\(targetID.uuidString) direction=\(direction) runOrdinal=\(runOrdinal) previousDirection=\(previousDirection) previousTransitionSeq=\(previousTransition) priorEditSeq=\(priorEditSequence) hasPriorEdit=\(hasPriorEdit) editDelta=\(editDelta) editActiveForTarget=\(editActiveForTarget)"
+                    sequenceContextMessage
                 )
                 topEdgeProbeSession += 1
                 tableState.topEdgeProbeTargetID = targetID
@@ -548,6 +559,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
                     "session=\(self.topEdgeProbeSession) direction=\(self.topEdgeProbeDirection) target=\(self.formattedID(self.topEdgeProbeTargetID)) elapsed=\(String(format: "%.6f", ProcessInfo.processInfo.systemUptime - animationStart))"
                 )
             }
+            self.emitSequenceReplayIfNeeded(for: self.collapseProbeTargetID)
             self.finishSiblingProbe(animationEnd: ProcessInfo.processInfo.systemUptime)
             self.tableState.collapseProbeActive = false
             self.tableState.collapseProbeTargetID = nil
@@ -765,13 +777,6 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             abs(nextSample.minY - state.baselineNextMinY) > siblingProbeEpsilon
         if nextMovedFromBaseline, state.firstNextTopMoveUptime == nil {
             state.firstNextTopMoveUptime = now
-            let targetSettleOffsetMs = state.lastTargetOuterChangeUptime.map {
-                String(format: "%.3f", ($0 - state.animationStartUptime) * 1000)
-            } ?? "nil"
-            traceAnimation(
-                "probe.sibling.nextTopFirstMove",
-                "session=\(state.session) sample=\(state.sampleCount) target=\(state.targetID.uuidString) next=\(state.nextID.uuidString) firstMoveOffsetMs=\(String(format: "%.3f", (now - state.animationStartUptime) * 1000)) targetSettleOffsetMs=\(targetSettleOffsetMs) nextMinYShiftFromStart=\(String(format: "%.3f", nextSample.minY - state.baselineNextMinY))"
-            )
         }
         let gap = nextSample.minY - targetSample.maxY
         state.minGap = min(state.minGap, gap)
@@ -784,10 +789,6 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         )
         if stackRelation != state.lastStackRelation {
             state.stackRelationChangeCount += 1
-            traceAnimation(
-                "probe.sibling.stackChanged",
-                "session=\(state.session) sample=\(state.sampleCount) target=\(state.targetID.uuidString) next=\(state.nextID.uuidString) previousStackRelation=\(state.lastStackRelation) newStackRelation=\(stackRelation) targetZ=\(String(format: "%.3f", targetSample.zPosition)) nextZ=\(String(format: "%.3f", nextSample.zPosition)) targetOrder=\(targetSample.siblingIndex) nextOrder=\(nextSample.siblingIndex)"
-            )
             state.lastStackRelation = stackRelation
         }
 
@@ -924,6 +925,16 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         print("[LogAnimationTrace] \(line)")
         BreadcrumbStore.shared.add(line, category: "log-animation")
         #endif
+    }
+
+    private func emitSequenceReplayIfNeeded(for targetID: UUID?) {
+        guard let targetID else { return }
+        if let editTransitionMessage = rowLastEditTransitionMessage[targetID] {
+            traceAnimation("probe.sequence.editTransition", "\(editTransitionMessage) replay=tail")
+        }
+        if let sequenceContextMessage = rowLastSequenceContextMessage[targetID] {
+            traceAnimation("probe.sequence.context", "\(sequenceContextMessage) replay=tail")
+        }
     }
 
     private func formattedID(_ id: UUID?) -> String {
@@ -1203,10 +1214,14 @@ struct LogRowHostedView: View {
     @State private var probeTopEdgeReplayTargetID: UUID? = nil
     @State private var probeTopEdgeBeginReplayMessage: String? = nil
     @State private var probeTopEdgeEarlySampleMessages: [String] = []
-    private let detailProbeSampleStride: Int = 4
+    @State private var localStateReplayTargetID: UUID? = nil
+    @State private var localStateReplayMessages: [String] = []
+    private let detailProbeSampleStride: Int = 8
     private let detailProbeTerminalThreshold: CGFloat = 0.02
-    private let topEdgeProbeMaxSamples: Int = 8
-    private let topEdgeProbeReplaySampleCount: Int = 3
+    private let topEdgeProbeMaxSamples: Int = 4
+    private let topEdgeProbeReplaySampleCount: Int = 1
+    private let geometryScopeProbeMaxSamples: Int = 4
+    private let localStateReplayMaxSamples: Int = 4
     private let topEdgeStableEpsilon: CGFloat = 0.5
     private var probeGeometryCoordinateSpaceName: String {
         "log-row-probe-\(probeRowToken)"
@@ -1368,10 +1383,29 @@ struct LogRowHostedView: View {
                     )
                 },
                 onLocalStateSnapshot: { reason, detailPresenceValue, intrinsicHeight, visibleHeight in
+                    let phaseTargeted = tableState.phaseProbeTargetID == log.id
+                    let collapseTargeted = tableState.collapseProbeTargetID == log.id
+                    let editingTargeted = tableState.editingID == log.id
+                    let expandedTargeted = tableState.expandedID == log.id
+                    let shouldLogLocalState =
+                        phaseTargeted
+                        || collapseTargeted
+                        || editingTargeted
+                        || expandedTargeted
+                        || reason.hasPrefix("isExpandedChanged")
+                        || reason.hasPrefix("isEditingChanged")
+                    guard shouldLogLocalState else { return }
                     let detailPresence = detailPresenceValue.map(formatted) ?? "nil"
+                    let sampleMessage =
+                        "\(renderIdentity) rowToken=\(probeRowToken) reason=\(reason) detailPresenceState=\(detailPresence) detailIntrinsicHeight=\(formatted(intrinsicHeight)) detailVisibleHeight=\(formatted(visibleHeight)) phaseTransitionSeq=\(tableState.phaseProbeTransitionSequence) phaseDirection=\(tableState.phaseProbeDirection) phaseRunOrdinal=\(tableState.phaseProbeRunOrdinal) phasePreviousDirection=\(tableState.phaseProbePreviousDirection) phasePriorEditSeq=\(tableState.phaseProbePriorEditSequence) phaseHasPriorEdit=\(tableState.phaseProbeHasPriorEdit) phaseEditDelta=\(tableState.phaseProbeEditDelta) phaseEditActiveForTarget=\(tableState.phaseProbeEditActiveForTarget) phaseTargeted=\(phaseTargeted)"
+                    captureLocalStateReplayIfNeeded(
+                        logID: log.id,
+                        sampleMessage: sampleMessage,
+                        stronglyTargeted: phaseTargeted || collapseTargeted || editingTargeted || expandedTargeted
+                    )
                     traceHostedRow(
                         "swiftui.row.localStateProbe.sample",
-                        "\(renderIdentity) rowToken=\(probeRowToken) reason=\(reason) detailPresenceState=\(detailPresence) detailIntrinsicHeight=\(formatted(intrinsicHeight)) detailVisibleHeight=\(formatted(visibleHeight)) phaseTransitionSeq=\(tableState.phaseProbeTransitionSequence) phaseDirection=\(tableState.phaseProbeDirection) phaseRunOrdinal=\(tableState.phaseProbeRunOrdinal) phasePreviousDirection=\(tableState.phaseProbePreviousDirection) phasePriorEditSeq=\(tableState.phaseProbePriorEditSequence) phaseHasPriorEdit=\(tableState.phaseProbeHasPriorEdit) phaseEditDelta=\(tableState.phaseProbeEditDelta) phaseEditActiveForTarget=\(tableState.phaseProbeEditActiveForTarget) phaseTargeted=\(tableState.phaseProbeTargetID == log.id)"
+                        sampleMessage
                     )
                 },
                 geometryCoordinateSpaceName: probeGeometryCoordinateSpaceName
@@ -1449,6 +1483,8 @@ struct LogRowHostedView: View {
                 probeDetailPhaseLastSignature = ""
                 probeGeometryScopeSample = 0
                 probeGeometryScopeLastSignature = ""
+                localStateReplayTargetID = nil
+                localStateReplayMessages = []
             }
             .onChange(of: tableState.topEdgeProbeSession) { _, _ in
                 probeTopEdgeSample = 0
@@ -1469,6 +1505,7 @@ struct LogRowHostedView: View {
                     probeLastSignature = ""
                     probeDetailOpacityLastSignature = ""
                     probeDetailPhaseLastSignature = ""
+                    emitLocalStateReplayIfNeeded(logID: log.id)
                 }
             }
             .onChange(of: tableState.topEdgeProbeActive) { _, isActive in
@@ -1564,7 +1601,7 @@ struct LogRowHostedView: View {
         probeDetailOpacityLastSignature = signature
         probeDetailOpacitySample += 1
         let sampleIndex = probeDetailOpacitySample
-        guard shouldEmitDetailProbeSample(sampleIndex: sampleIndex, progress: renderedOpacity) else { return }
+        guard shouldEmitDetailProbeSample(sampleIndex: sampleIndex, progress: rawOpacity) else { return }
         traceHostedRow(
             "swiftui.row.detailOpacityProbe.sample",
             "\(renderIdentity) probeSession=\(tableState.collapseProbeSession) probeSample=\(sampleIndex) rowToken=\(probeRowToken) rawAnimatableOpacity=\(raw) renderedOpacity=\(rendered) targetOpacity=\(target) visibilityGateOpen=\(gateOpen) detailFrameHeightParam=\(frameHeight) detailIntrinsicHeight=\(intrinsicHeight) detailVisibleHeight=\(visibleHeight) txDisablesAnimations=\(txDisablesAnimations) inheritedAnimationDuration=\(inheritedDuration) inheritedAnimationsEnabled=\(inheritedEnabled) targetID=\(logID.uuidString)"
@@ -1652,6 +1689,7 @@ struct LogRowHostedView: View {
         guard tableState.collapseProbeActive else { return }
         guard tableState.collapseProbeTargetID == logID else { return }
         guard isHeightAnimating else { return }
+        guard probeGeometryScopeSample < geometryScopeProbeMaxSamples else { return }
         let rowMinY = formatted(probeRowContainerFrame.minY)
         let rowMaxY = formatted(probeRowContainerFrame.maxY)
         let rowHeight = formatted(probeRowContainerFrame.height)
@@ -1792,6 +1830,32 @@ struct LogRowHostedView: View {
         probeTopEdgeReplayTargetID = nil
         probeTopEdgeBeginReplayMessage = nil
         probeTopEdgeEarlySampleMessages = []
+    }
+
+    private func captureLocalStateReplayIfNeeded(
+        logID: UUID,
+        sampleMessage: String,
+        stronglyTargeted: Bool
+    ) {
+        if localStateReplayTargetID == nil {
+            guard stronglyTargeted else { return }
+            localStateReplayTargetID = logID
+        }
+        guard localStateReplayTargetID == logID else { return }
+        guard localStateReplayMessages.last != sampleMessage else { return }
+        localStateReplayMessages.append(sampleMessage)
+        if localStateReplayMessages.count > localStateReplayMaxSamples {
+            localStateReplayMessages.removeFirst(localStateReplayMessages.count - localStateReplayMaxSamples)
+        }
+    }
+
+    private func emitLocalStateReplayIfNeeded(logID: UUID) {
+        guard localStateReplayTargetID == logID else { return }
+        for sampleMessage in localStateReplayMessages {
+            traceHostedRow("swiftui.row.localStateProbe.sample", "\(sampleMessage) replay=tail")
+        }
+        localStateReplayTargetID = nil
+        localStateReplayMessages = []
     }
 
     private func phaseProbeContext(logID: UUID) -> String {

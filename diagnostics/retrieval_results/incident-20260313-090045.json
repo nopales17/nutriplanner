@@ -5,29 +5,29 @@
     "subsystem_candidates": [
       "LogsTableViewController phase/sequence context propagation to row-local state",
       "LogRowCardView detailPresence local state transition path",
-      "LogsTableViewController immediate sibling row interaction (deprioritized by current traces)"
+      "LogsTableViewController sibling interaction guardrails (retain minimal only)"
     ],
     "candidates": [
       {
         "motif_id": "motif-source-of-truth-state-promotion-divergence",
         "supporting_evidence": [
-          "Across the three newest scenarios, the only discriminating signal is sequence context: edit-first collapse has `phaseHasPriorEdit=true` / `hasPriorEditForTarget=true`, while expand-first and repeated collapse runs have those false.",
-          "Sibling end metrics are stable in all three scenarios (`nextTopMoveRelativeToTargetOuterSettle=with`, `nextMoveToSettleDeltaMs=0.000`, `maxOverlapY=-0.000`, `stackRelationChangeCount=0`), reducing support for sibling timing/stack as the primary remaining issue."
+          "Edit-first traces show phase history fields that differ from non-edit-first runs while sibling end metrics remain invariant.",
+          "Recent incident tails preserve collapse/end samples but not the sequence-begin/local-state probe lines needed to directly confirm local state carryover."
         ],
         "contradicting_evidence": [
-          "Saved incident tails do not retain explicit `probe.sequence.editTransition`, `probe.sequence.context`, or `swiftui.row.localStateProbe.sample` lines, so direct row-local divergence after edit cannot be observed in these artifacts.",
-          "Collapse phase samples are otherwise similar across scenarios (`detailPhase=animating_closed_gate_target_hidden`, `detailFrameHeightParam=0.000`)."
+          "Missing retained `probe.sequence.editTransition`, `probe.sequence.context`, and `swiftui.row.localStateProbe.sample` prevents direct confirmation in the same capture."
         ],
         "missing_evidence": [
-          "Retained breadcrumbs containing sequence begin/context and local-state snapshots for the same collapse session (currently evicted by 50-breadcrumb tail).",
-          "A capture where `detailPresenceState` is compared directly pre/post edit transition and at collapse start for the same row token."
+          "A single edit-first -> expand/collapse tail containing all three sequence/local-state probe events for the same target row."
         ],
-        "next_discriminating_check": "Run one targeted capture with breadcrumb retention increased or high-volume opacity sampling reduced so that `probe.sequence.editTransition`, `probe.sequence.context`, and `swiftui.row.localStateProbe.sample` for the target collapse are preserved together."
+        "next_discriminating_check": "Constrain breadcrumb noise and prioritize sequence/local-state probes so one clean edit-first run retains sequence transition/context plus local state sample events."
       }
     ],
     "phase_ownership": {
-      "best_supported_hypothesis": "Sequence/state-path is more plausible than sibling timing/stack for the remaining scenario-dependent behavior, but direct local-state confirmation is currently missing due breadcrumb truncation.",
-      "first_diverging_owner": "LogRowCardView detailPresence local state relative to edit->collapse sequence context (pending direct capture)"
-    }
+      "best_supported_hypothesis": "Remaining bug likely resides in sequence/state-path (phase context -> row-local detailPresence state) rather than sibling stack/timing.",
+      "first_diverging_owner": "LogRowCardView local detailPresence state relative to LogsTableViewController sequence context (pending direct retained evidence)."
+    },
+    "triage_policy_mode": "ambiguous",
+    "next_action_mode": "single discriminating instrumentation/check at the sequence/local-state decision point"
   }
 }
