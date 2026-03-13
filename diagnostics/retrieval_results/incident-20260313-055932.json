@@ -1,0 +1,24 @@
+{
+  "incident_id": "incident-20260313-055932",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "During collapse, state flags transition coherently (`expandedChanged` -> false, `animatingChanged` toggles, `probe.collapse.end` fires) without evidence of tentative-vs-committed state divergence.",
+          "The geometry mismatch is render-local: samples show `detailVisibleHeight=0.000` while `belowBoundaryDeltaY` spikes (for example -263.833 and 356.667) before returning to 46.333, indicating transient boundary layout handoff rather than state promotion failure."
+        ],
+        "contradicting_evidence": [
+          "No breadcrumb indicates policy or business logic consuming a stale committed channel; symptoms are isolated to estimate-row geometry probes.",
+          "The previously persistent hidden-detail-height issue is already fixed, leaving only a short-lived sibling/parent boundary alignment mismatch."
+        ],
+        "missing_evidence": [
+          "Direct instrumentation of the immediate parent container of the detail region and the immediate first child below the expansion boundary in the same render pass/transaction.",
+          "A signal proving whether those two boundary nodes are updated in the same transaction or in staggered layout passes."
+        ],
+        "next_discriminating_check": "Add narrow geometry/transaction probes in `LogsTableViewController.swift` at the detail parent container and first below-boundary child to compare minY/maxY/height, local spacing contribution, and transaction animation identity over the same collapse session."
+      }
+    ]
+  }
+}
