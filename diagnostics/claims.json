@@ -403,6 +403,26 @@
         "LogsTableViewController.swift"
       ],
       "checked_at": "2026-03-13"
+    },
+    {
+      "id": "estimate-row-top-edge-overlay-probe-inserts-extra-top-layer",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "Top-edge visible-edge probing in `LogRowCardView` adds an aligned top overlay layer (`.overlay(alignment: .top) { Color.clear.frame(height: 1) ... GeometryReader ... }`) that did not exist in the prior collapse-path fix point, so this instrumentation is not layout-neutral and can perturb rendering/compositing during collapse.",
+      "files": [
+        "LogsTableViewController.swift"
+      ],
+      "checked_at": "2026-03-14"
+    },
+    {
+      "id": "estimate-row-detail-clip-container-probe-adds-extra-geometry-reader",
+      "status": "supported",
+      "subsystem": "estimate-row-render",
+      "statement": "Owner-stack/top-edge instrumentation adds a `GeometryReader` background on the post-frame detail container (`microContent.frame(height: ...).background(GeometryReader...).clipped()`), which introduces extra geometry callbacks and state churn directly on the collapse path; this is a plausible observer-effect source.",
+      "files": [
+        "LogsTableViewController.swift"
+      ],
+      "checked_at": "2026-03-14"
     }
   ],
   "claim_sets": {
@@ -428,6 +448,6 @@
       "estimate-row-edit-first-collapse-boundary-carries-detail-visibility"
     ]
   },
-  "last_updated": "2026-03-13",
+  "last_updated": "2026-03-14",
   "schema_version": 1
 }

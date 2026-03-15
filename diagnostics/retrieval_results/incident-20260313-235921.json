@@ -1,0 +1,33 @@
+{
+  "incident_id": "incident-20260313-235921",
+  "retrieval": {
+    "verdict": "motif_non_match",
+    "subsystem_candidates": [
+      "LogsTableViewController row/card render tree in LogRowCardView",
+      "recent probe overlays/top-edge/owner-stack wiring in row rendering path",
+      "UITableView cell host/container clipping and wrapper hierarchy"
+    ],
+    "candidates": [
+      {
+        "motif_id": "motif-source-of-truth-state-promotion-divergence",
+        "supporting_evidence": [
+          "Collapse trace shows deterministic state flip (`isExpanded=false`) and expected height transition completion."
+        ],
+        "contradicting_evidence": [
+          "Observed regression is visual animation/render behavior rather than mismatch between tentative and committed state channels.",
+          "Incident breadcrumbs are dominated by geometry/owner-stack/top-edge probe surfaces in LogsTableViewController."
+        ],
+        "missing_evidence": [
+          "None required to classify this incident away from state-promotion motif."
+        ],
+        "next_discriminating_check": "Compare recent commits touching LogsTableViewController.swift against a likely known-good point, isolating probe and wrapper changes that can perturb layout/animation."
+      }
+    ],
+    "phase_ownership": {
+      "best_supported_hypothesis": "observer-effect regression from recent instrumentation/layout wrappers",
+      "first_diverging_owner": "SwiftUI row/card subtree in LogsTableViewController"
+    },
+    "triage_policy_mode": "motif_non_match",
+    "next_action_mode": "Deprioritize motif and inspect recent render-tree changes in the implicated subsystem"
+  }
+}
