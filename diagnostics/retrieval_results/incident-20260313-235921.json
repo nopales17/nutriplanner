@@ -1,33 +1,34 @@
 {
   "incident_id": "incident-20260313-235921",
   "retrieval": {
-    "verdict": "motif_non_match",
+    "verdict": "ambiguous",
     "subsystem_candidates": [
-      "LogsTableViewController row/card render tree in LogRowCardView",
-      "recent probe overlays/top-edge/owner-stack wiring in row rendering path",
-      "UITableView cell host/container clipping and wrapper hierarchy"
+      "LogsTableViewController estimate-row render path in LogRowCardView",
+      "collapse-path bottom-edge owner chain (card outer, border layer, detail clip container, visible card bottom)",
+      "immediate next-row overlap relation in UITableView host stack"
     ],
     "candidates": [
       {
         "motif_id": "motif-source-of-truth-state-promotion-divergence",
         "supporting_evidence": [
-          "Collapse trace shows deterministic state flip (`isExpanded=false`) and expected height transition completion."
+          "None: user-visible issue is geometric/compositing motion, not state promotion mismatch."
         ],
         "contradicting_evidence": [
-          "Observed regression is visual animation/render behavior rather than mismatch between tentative and committed state channels.",
-          "Incident breadcrumbs are dominated by geometry/owner-stack/top-edge probe surfaces in LogsTableViewController."
+          "Stable user fact: expand grows bottom edge correctly while collapse snaps bottom edge upward.",
+          "Prior top-edge probes no longer match active user-visible failure."
         ],
         "missing_evidence": [
-          "None required to classify this incident away from state-promotion motif."
+          "Row-local, event-retained owner comparison showing which bottom-edge owner moves first on collapse versus expand.",
+          "Correlation between visible card-bottom movement and next-row top overlap at first non-zero shift."
         ],
-        "next_discriminating_check": "Compare recent commits touching LogsTableViewController.swift against a likely known-good point, isolating probe and wrapper changes that can perturb layout/animation."
+        "next_discriminating_check": "Add minimal row-local bottom-edge owner instrumentation in LogsTableViewController.swift and retain first non-zero shift window for expand/collapse."
       }
     ],
     "phase_ownership": {
-      "best_supported_hypothesis": "observer-effect regression from recent instrumentation/layout wrappers",
-      "first_diverging_owner": "SwiftUI row/card subtree in LogsTableViewController"
+      "best_supported_hypothesis": "collapse-specific bottom-edge ownership divergence inside estimate-row render stack",
+      "first_diverging_owner": "undetermined between card outer, border layer, detail clip container, and rendered visible bottom edge"
     },
-    "triage_policy_mode": "motif_non_match",
-    "next_action_mode": "Deprioritize motif and inspect recent render-tree changes in the implicated subsystem"
+    "triage_policy_mode": "ambiguous",
+    "next_action_mode": "Single narrow instrumentation/check at collapse decision point"
   }
 }

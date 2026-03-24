@@ -72,7 +72,10 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
     private let ownerStackProbeShiftReplayPostSamples: Int = 2
     private let ownerStackProbeShiftEpsilon: CGFloat = 0.5
     private var ownerStackProbeBaselineTargetCellMinY: CGFloat?
+    private var ownerStackProbeBaselineTargetCellMaxY: CGFloat?
     private var ownerStackProbeBaselineTargetContentMinY: CGFloat?
+    private var ownerStackProbeBaselineNextCellMinY: CGFloat?
+    private var ownerStackProbeBaselineCellGapY: CGFloat?
     private var ownerStackProbeBaselineCellOverlapY: CGFloat?
     private var ownerStackProbeBaselineStackRelation: String = "unknown"
     private var ownerStackProbeRecentSampleMessages: [String] = []
@@ -521,7 +524,8 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         } else {
             tableState.topEdgeProbeActive = false
         }
-        let ownerStackProbeIsActive = topEdgeProbeIsActive && topEdgeProbeDirection == "collapse"
+        let ownerStackProbeIsActive =
+            topEdgeProbeIsActive && (topEdgeProbeDirection == "collapse" || topEdgeProbeDirection == "expand")
         if ownerStackProbeIsActive, let target = topEdgeProbeTargetID {
             ownerStackProbeSession += 1
             ownerStackProbeSample = 0
@@ -542,7 +546,9 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             tableState.ownerStackProbeDirection = "none"
             resetOwnerStackShiftWindowState()
         }
-        if collapseProbeIsActive, let target = collapseProbeTargetID {
+        let siblingProbeIsActive =
+            topEdgeProbeIsActive && (topEdgeProbeDirection == "collapse" || topEdgeProbeDirection == "expand")
+        if siblingProbeIsActive, let target = topEdgeProbeTargetID {
             beginSiblingProbeIfNeeded(
                 targetID: target,
                 direction: topEdgeProbeDirection,
@@ -916,7 +922,10 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
 
     private func resetOwnerStackShiftWindowState() {
         ownerStackProbeBaselineTargetCellMinY = nil
+        ownerStackProbeBaselineTargetCellMaxY = nil
         ownerStackProbeBaselineTargetContentMinY = nil
+        ownerStackProbeBaselineNextCellMinY = nil
+        ownerStackProbeBaselineCellGapY = nil
         ownerStackProbeBaselineCellOverlapY = nil
         ownerStackProbeBaselineStackRelation = "unknown"
         ownerStackProbeRecentSampleMessages = []
@@ -940,10 +949,22 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
 
     private func ownerStackShiftTriggerField(
         targetCellMinYShiftFromStart: CGFloat,
+        targetCellMaxYShiftFromStart: CGFloat,
         targetContentMinYShiftFromStart: CGFloat,
+        nextCellMinYShiftFromStart: CGFloat,
+        cellGapYShiftFromStart: CGFloat,
         cellOverlapYShiftFromStart: CGFloat,
         stackRelation: String
     ) -> String? {
+        if abs(targetCellMaxYShiftFromStart) > ownerStackProbeShiftEpsilon {
+            return "targetCellMaxYShiftFromStart"
+        }
+        if abs(nextCellMinYShiftFromStart) > ownerStackProbeShiftEpsilon {
+            return "nextCellMinYShiftFromStart"
+        }
+        if abs(cellGapYShiftFromStart) > ownerStackProbeShiftEpsilon {
+            return "cellGapYShiftFromStart"
+        }
         if abs(targetCellMinYShiftFromStart) > ownerStackProbeShiftEpsilon {
             return "targetCellMinYShiftFromStart"
         }
@@ -1035,15 +1056,24 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         } ?? "unknown"
         if ownerStackProbeBaselineTargetCellMinY == nil {
             ownerStackProbeBaselineTargetCellMinY = targetCellFrameInTable.minY
+            ownerStackProbeBaselineTargetCellMaxY = targetCellFrameInTable.maxY
             ownerStackProbeBaselineTargetContentMinY = targetContentFrameInTable.minY
+            ownerStackProbeBaselineNextCellMinY = nextCellFrameInTable.minY
+            ownerStackProbeBaselineCellGapY = cellGap
             ownerStackProbeBaselineCellOverlapY = cellOverlap
             ownerStackProbeBaselineStackRelation = stackRelation
         }
         let baselineTargetCellMinY = ownerStackProbeBaselineTargetCellMinY ?? targetCellFrameInTable.minY
+        let baselineTargetCellMaxY = ownerStackProbeBaselineTargetCellMaxY ?? targetCellFrameInTable.maxY
         let baselineTargetContentMinY = ownerStackProbeBaselineTargetContentMinY ?? targetContentFrameInTable.minY
+        let baselineNextCellMinY = ownerStackProbeBaselineNextCellMinY ?? nextCellFrameInTable.minY
+        let baselineCellGap = ownerStackProbeBaselineCellGapY ?? cellGap
         let baselineCellOverlap = ownerStackProbeBaselineCellOverlapY ?? cellOverlap
         let targetCellMinYShiftFromStart = targetCellFrameInTable.minY - baselineTargetCellMinY
+        let targetCellMaxYShiftFromStart = targetCellFrameInTable.maxY - baselineTargetCellMaxY
         let targetContentMinYShiftFromStart = targetContentFrameInTable.minY - baselineTargetContentMinY
+        let nextCellMinYShiftFromStart = nextCellFrameInTable.minY - baselineNextCellMinY
+        let cellGapYShiftFromStart = cellGap - baselineCellGap
         let cellOverlapYShiftFromStart = cellOverlap - baselineCellOverlap
 
         let signature = [
@@ -1051,6 +1081,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             formatted(targetRowRect.maxY),
             formatted(targetRowRect.height),
             formatted(targetCellFrameInTable.minY),
+            formatted(targetCellFrameInTable.maxY),
             formatted(targetCellFrameInTable.height),
             formatted(targetContentFrameInTable.minY),
             formatted(targetContentFrameInTable.height),
@@ -1060,6 +1091,7 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
             formatted(hostSnapshot?.swiftUIRootFrameInTable.height ?? 0),
             formatted(nextRowMinY),
             formatted(nextRowHeight),
+            formatted(nextCellFrameInTable.minY),
             formatted(rowGap),
             formatted(cellGap),
             formatted(cellOverlap),
@@ -1074,10 +1106,13 @@ final class LogsTableViewController: UIViewController, UITableViewDelegate {
         ownerStackProbeSample += 1
 
         let sampleMessage =
-            "session=\(tableState.ownerStackProbeSession) probeSample=\(ownerStackProbeSample) probeSampleLimit=\(ownerStackProbeMaxSamples) trigger=\(trigger) direction=\(tableState.ownerStackProbeDirection) target=\(targetID.uuidString) targetIndex=\(targetIndexPath.section):\(targetIndexPath.row) rowRectMinY=\(formatted(targetRowRect.minY)) rowRectMaxY=\(formatted(targetRowRect.maxY)) rowRectHeight=\(formatted(targetRowRect.height)) tableClipsToBounds=\(tableView.clipsToBounds) tableMasksToBounds=\(tableView.layer.masksToBounds) targetCellVisible=\(targetCellVisible) targetCellMinY=\(formatted(targetCellFrameInTable.minY)) targetCellMaxY=\(formatted(targetCellFrameInTable.maxY)) targetCellHeight=\(formatted(targetCellFrameInTable.height)) targetCellMinYShiftFromStart=\(formatted(targetCellMinYShiftFromStart)) targetCellClipsToBounds=\(targetCellClips) targetCellMasksToBounds=\(targetCellMasks) targetCellAlpha=\(formatted(targetCellAlpha)) targetCellHidden=\(targetCellHidden) targetCellZ=\(formatted(targetCellZ)) targetCellOrder=\(targetCellOrder) targetContentMinY=\(formatted(targetContentFrameInTable.minY)) targetContentMaxY=\(formatted(targetContentFrameInTable.maxY)) targetContentHeight=\(formatted(targetContentFrameInTable.height)) targetContentMinYShiftFromStart=\(formatted(targetContentMinYShiftFromStart)) targetContentClipsToBounds=\(targetContentClips) targetContentMasksToBounds=\(targetContentMasks) targetContentAlpha=\(formatted(targetContentAlpha)) targetContentHidden=\(targetContentHidden) hostViewPtr=\(hostSnapshot?.hostPointer ?? "nil") hostViewMinY=\(formatted(hostSnapshot?.hostFrameInTable.minY ?? 0)) hostViewMaxY=\(formatted(hostSnapshot?.hostFrameInTable.maxY ?? 0)) hostViewHeight=\(formatted(hostSnapshot?.hostFrameInTable.height ?? 0)) hostViewClipsToBounds=\(hostSnapshot?.hostClipsToBounds ?? false) hostViewMasksToBounds=\(hostSnapshot?.hostMasksToBounds ?? false) hostViewCompositingFilterActive=\(hostSnapshot?.hostCompositingFilterActive ?? false) hostViewAllowsGroupOpacity=\(hostSnapshot?.hostAllowsGroupOpacity ?? false) hostViewAlpha=\(formatted(hostSnapshot?.hostAlpha ?? 0)) hostViewHidden=\(hostSnapshot?.hostHidden ?? true) swiftUIRootPtr=\(hostSnapshot?.swiftUIRootPointer ?? "nil") swiftUIRootMinY=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.minY ?? 0)) swiftUIRootMaxY=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.maxY ?? 0)) swiftUIRootHeight=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.height ?? 0)) swiftUIRootClipsToBounds=\(hostSnapshot?.swiftUIRootClipsToBounds ?? false) swiftUIRootMasksToBounds=\(hostSnapshot?.swiftUIRootMasksToBounds ?? false) swiftUIRootCompositingFilterActive=\(hostSnapshot?.swiftUIRootCompositingFilterActive ?? false) swiftUIRootAllowsGroupOpacity=\(hostSnapshot?.swiftUIRootAllowsGroupOpacity ?? false) swiftUIRootAlpha=\(formatted(hostSnapshot?.swiftUIRootAlpha ?? 0)) swiftUIRootHidden=\(hostSnapshot?.swiftUIRootHidden ?? true) nextID=\(nextID?.uuidString ?? "nil") nextCellVisible=\(nextCellVisible) nextRowMinY=\(formatted(nextRowMinY)) nextRowHeight=\(formatted(nextRowHeight)) nextCellMinY=\(formatted(nextCellFrameInTable.minY)) nextCellMaxY=\(formatted(nextCellFrameInTable.maxY)) nextCellHeight=\(formatted(nextCellFrameInTable.height)) nextCellZ=\(formatted(nextCellZ)) nextCellOrder=\(nextCellOrder) rowGapY=\(formatted(rowGap)) cellGapY=\(formatted(cellGap)) cellOverlapY=\(formatted(cellOverlap)) cellOverlapYShiftFromStart=\(formatted(cellOverlapYShiftFromStart)) stackRelation=\(stackRelation)"
+            "session=\(tableState.ownerStackProbeSession) probeSample=\(ownerStackProbeSample) probeSampleLimit=\(ownerStackProbeMaxSamples) trigger=\(trigger) direction=\(tableState.ownerStackProbeDirection) target=\(targetID.uuidString) targetIndex=\(targetIndexPath.section):\(targetIndexPath.row) rowRectMinY=\(formatted(targetRowRect.minY)) rowRectMaxY=\(formatted(targetRowRect.maxY)) rowRectHeight=\(formatted(targetRowRect.height)) tableClipsToBounds=\(tableView.clipsToBounds) tableMasksToBounds=\(tableView.layer.masksToBounds) targetCellVisible=\(targetCellVisible) targetCellMinY=\(formatted(targetCellFrameInTable.minY)) targetCellMaxY=\(formatted(targetCellFrameInTable.maxY)) targetCellHeight=\(formatted(targetCellFrameInTable.height)) targetCellMinYShiftFromStart=\(formatted(targetCellMinYShiftFromStart)) targetCellMaxYShiftFromStart=\(formatted(targetCellMaxYShiftFromStart)) targetCellClipsToBounds=\(targetCellClips) targetCellMasksToBounds=\(targetCellMasks) targetCellAlpha=\(formatted(targetCellAlpha)) targetCellHidden=\(targetCellHidden) targetCellZ=\(formatted(targetCellZ)) targetCellOrder=\(targetCellOrder) targetContentMinY=\(formatted(targetContentFrameInTable.minY)) targetContentMaxY=\(formatted(targetContentFrameInTable.maxY)) targetContentHeight=\(formatted(targetContentFrameInTable.height)) targetContentMinYShiftFromStart=\(formatted(targetContentMinYShiftFromStart)) targetContentClipsToBounds=\(targetContentClips) targetContentMasksToBounds=\(targetContentMasks) targetContentAlpha=\(formatted(targetContentAlpha)) targetContentHidden=\(targetContentHidden) hostViewPtr=\(hostSnapshot?.hostPointer ?? "nil") hostViewMinY=\(formatted(hostSnapshot?.hostFrameInTable.minY ?? 0)) hostViewMaxY=\(formatted(hostSnapshot?.hostFrameInTable.maxY ?? 0)) hostViewHeight=\(formatted(hostSnapshot?.hostFrameInTable.height ?? 0)) hostViewClipsToBounds=\(hostSnapshot?.hostClipsToBounds ?? false) hostViewMasksToBounds=\(hostSnapshot?.hostMasksToBounds ?? false) hostViewCompositingFilterActive=\(hostSnapshot?.hostCompositingFilterActive ?? false) hostViewAllowsGroupOpacity=\(hostSnapshot?.hostAllowsGroupOpacity ?? false) hostViewAlpha=\(formatted(hostSnapshot?.hostAlpha ?? 0)) hostViewHidden=\(hostSnapshot?.hostHidden ?? true) swiftUIRootPtr=\(hostSnapshot?.swiftUIRootPointer ?? "nil") swiftUIRootMinY=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.minY ?? 0)) swiftUIRootMaxY=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.maxY ?? 0)) swiftUIRootHeight=\(formatted(hostSnapshot?.swiftUIRootFrameInTable.height ?? 0)) swiftUIRootClipsToBounds=\(hostSnapshot?.swiftUIRootClipsToBounds ?? false) swiftUIRootMasksToBounds=\(hostSnapshot?.swiftUIRootMasksToBounds ?? false) swiftUIRootCompositingFilterActive=\(hostSnapshot?.swiftUIRootCompositingFilterActive ?? false) swiftUIRootAllowsGroupOpacity=\(hostSnapshot?.swiftUIRootAllowsGroupOpacity ?? false) swiftUIRootAlpha=\(formatted(hostSnapshot?.swiftUIRootAlpha ?? 0)) swiftUIRootHidden=\(hostSnapshot?.swiftUIRootHidden ?? true) nextID=\(nextID?.uuidString ?? "nil") nextCellVisible=\(nextCellVisible) nextRowMinY=\(formatted(nextRowMinY)) nextRowHeight=\(formatted(nextRowHeight)) nextCellMinY=\(formatted(nextCellFrameInTable.minY)) nextCellMaxY=\(formatted(nextCellFrameInTable.maxY)) nextCellHeight=\(formatted(nextCellFrameInTable.height)) nextCellMinYShiftFromStart=\(formatted(nextCellMinYShiftFromStart)) nextCellZ=\(formatted(nextCellZ)) nextCellOrder=\(nextCellOrder) rowGapY=\(formatted(rowGap)) cellGapY=\(formatted(cellGap)) cellGapYShiftFromStart=\(formatted(cellGapYShiftFromStart)) cellOverlapY=\(formatted(cellOverlap)) cellOverlapYShiftFromStart=\(formatted(cellOverlapYShiftFromStart)) targetBottomToNextTopDeltaY=\(formatted(nextCellFrameInTable.minY - targetCellFrameInTable.maxY)) stackRelation=\(stackRelation)"
         let shiftTriggerField = ownerStackShiftTriggerField(
             targetCellMinYShiftFromStart: targetCellMinYShiftFromStart,
+            targetCellMaxYShiftFromStart: targetCellMaxYShiftFromStart,
             targetContentMinYShiftFromStart: targetContentMinYShiftFromStart,
+            nextCellMinYShiftFromStart: nextCellMinYShiftFromStart,
+            cellGapYShiftFromStart: cellGapYShiftFromStart,
             cellOverlapYShiftFromStart: cellOverlapYShiftFromStart,
             stackRelation: stackRelation
         )
@@ -1478,6 +1513,21 @@ struct LogRowHostedView: View {
     @State private var probeTopEdgeShiftDetected: Bool = false
     @State private var probeTopEdgeShiftTriggerField: String = "none"
     @State private var probeTopEdgeShiftPostSamplesRemaining: Int = 0
+    @State private var probeBottomEdgeSample: Int = 0
+    @State private var probeBottomEdgeLastSignature: String = ""
+    @State private var probeBottomEdgeBaselineRowMaxY: CGFloat? = nil
+    @State private var probeBottomEdgeBaselineCardOuterMaxY: CGFloat? = nil
+    @State private var probeBottomEdgeBaselineCardBorderMaxY: CGFloat? = nil
+    @State private var probeBottomEdgeBaselineDetailClipContainerMaxY: CGFloat? = nil
+    @State private var probeBottomEdgeBaselineCardVisibleBottomEdgeMaxY: CGFloat? = nil
+    @State private var probeBottomEdgeReplayTargetID: UUID? = nil
+    @State private var probeBottomEdgeBeginReplayMessage: String? = nil
+    @State private var probeBottomEdgeEarlySampleMessages: [String] = []
+    @State private var probeBottomEdgeRecentSampleMessages: [String] = []
+    @State private var probeBottomEdgeShiftWindowMessages: [String] = []
+    @State private var probeBottomEdgeShiftDetected: Bool = false
+    @State private var probeBottomEdgeShiftTriggerField: String = "none"
+    @State private var probeBottomEdgeShiftPostSamplesRemaining: Int = 0
     @State private var localStateReplayTargetID: UUID? = nil
     @State private var localStateReplayMessages: [String] = []
     private let detailProbeSampleStride: Int = 8
@@ -1486,9 +1536,14 @@ struct LogRowHostedView: View {
     private let topEdgeProbeReplaySampleCount: Int = 1
     private let topEdgeShiftReplayPreSamples: Int = 2
     private let topEdgeShiftReplayPostSamples: Int = 2
+    private let bottomEdgeProbeMaxSamples: Int = 6
+    private let bottomEdgeProbeReplaySampleCount: Int = 1
+    private let bottomEdgeShiftReplayPreSamples: Int = 2
+    private let bottomEdgeShiftReplayPostSamples: Int = 2
     private let geometryScopeProbeMaxSamples: Int = 4
     private let localStateReplayMaxSamples: Int = 4
     private let topEdgeStableEpsilon: CGFloat = 0.5
+    private let bottomEdgeStableEpsilon: CGFloat = 0.5
     private var probeGeometryCoordinateSpaceName: String {
         "log-row-probe-\(probeRowToken)"
     }
@@ -1536,11 +1591,21 @@ struct LogRowHostedView: View {
                         renderIdentity: renderIdentity,
                         isHeightAnimating: isHeightAnimating
                     )
+                    traceBottomEdgeOwnerSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
                 },
                 onCardBorderFrameChange: { frame in
                     updateGeometryTrigger("cardBorderFrame")
                     probeCardBorderFrame = frame
                     traceTopEdgeAnchorSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                    traceBottomEdgeOwnerSample(
                         logID: log.id,
                         renderIdentity: renderIdentity,
                         isHeightAnimating: isHeightAnimating
@@ -1574,11 +1639,21 @@ struct LogRowHostedView: View {
                         isEditing: isEditing,
                         isHeightAnimating: isHeightAnimating
                     )
+                    traceBottomEdgeOwnerSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
                 },
                 onDetailClipContainerFrameChange: { frame in
                     updateGeometryTrigger("detailClipContainerFrame")
                     probeDetailClipContainerFrame = frame
                     traceTopEdgeAnchorSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                    traceBottomEdgeOwnerSample(
                         logID: log.id,
                         renderIdentity: renderIdentity,
                         isHeightAnimating: isHeightAnimating
@@ -1624,6 +1699,11 @@ struct LogRowHostedView: View {
                         isHeightAnimating: isHeightAnimating
                     )
                     traceTopEdgeAnchorSample(
+                        logID: log.id,
+                        renderIdentity: renderIdentity,
+                        isHeightAnimating: isHeightAnimating
+                    )
+                    traceBottomEdgeOwnerSample(
                         logID: log.id,
                         renderIdentity: renderIdentity,
                         isHeightAnimating: isHeightAnimating
@@ -1709,6 +1789,11 @@ struct LogRowHostedView: View {
                                 renderIdentity: renderIdentity,
                                 isHeightAnimating: isHeightAnimating
                             )
+                            traceBottomEdgeOwnerSample(
+                                logID: log.id,
+                                renderIdentity: renderIdentity,
+                                isHeightAnimating: isHeightAnimating
+                            )
                         }
                         .onChange(of: proxy.frame(in: .named(probeGeometryCoordinateSpaceName))) { _, newFrame in
                             updateGeometryTrigger("rowContainerFrame")
@@ -1721,6 +1806,11 @@ struct LogRowHostedView: View {
                                 isHeightAnimating: isHeightAnimating
                             )
                             traceTopEdgeAnchorSample(
+                                logID: log.id,
+                                renderIdentity: renderIdentity,
+                                isHeightAnimating: isHeightAnimating
+                            )
+                            traceBottomEdgeOwnerSample(
                                 logID: log.id,
                                 renderIdentity: renderIdentity,
                                 isHeightAnimating: isHeightAnimating
@@ -1780,6 +1870,21 @@ struct LogRowHostedView: View {
                 probeTopEdgeShiftDetected = false
                 probeTopEdgeShiftTriggerField = "none"
                 probeTopEdgeShiftPostSamplesRemaining = 0
+                probeBottomEdgeSample = 0
+                probeBottomEdgeLastSignature = ""
+                probeBottomEdgeBaselineRowMaxY = nil
+                probeBottomEdgeBaselineCardOuterMaxY = nil
+                probeBottomEdgeBaselineCardBorderMaxY = nil
+                probeBottomEdgeBaselineDetailClipContainerMaxY = nil
+                probeBottomEdgeBaselineCardVisibleBottomEdgeMaxY = nil
+                probeBottomEdgeReplayTargetID = nil
+                probeBottomEdgeBeginReplayMessage = nil
+                probeBottomEdgeEarlySampleMessages = []
+                probeBottomEdgeRecentSampleMessages = []
+                probeBottomEdgeShiftWindowMessages = []
+                probeBottomEdgeShiftDetected = false
+                probeBottomEdgeShiftTriggerField = "none"
+                probeBottomEdgeShiftPostSamplesRemaining = 0
             }
             .onChange(of: tableState.collapseProbeActive) { _, isActive in
                 if !isActive {
@@ -1792,10 +1897,13 @@ struct LogRowHostedView: View {
             .onChange(of: tableState.topEdgeProbeActive) { _, isActive in
                 if isActive {
                     captureTopEdgeBeginReplayMessageIfNeeded(logID: log.id)
+                    captureBottomEdgeBeginReplayMessageIfNeeded(logID: log.id)
                     return
                 }
                 emitTopEdgeReplayIfNeeded(logID: log.id)
+                emitBottomEdgeReplayIfNeeded(logID: log.id)
                 probeTopEdgeLastSignature = ""
+                probeBottomEdgeLastSignature = ""
             }
         } else {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -2171,6 +2279,175 @@ struct LogRowHostedView: View {
         probeTopEdgeShiftDetected = false
         probeTopEdgeShiftTriggerField = "none"
         probeTopEdgeShiftPostSamplesRemaining = 0
+    }
+
+    private func bottomEdgeOwnerCandidates(
+        visibleBottomY: CGFloat,
+        cardOuterMaxY: CGFloat,
+        cardBorderMaxY: CGFloat,
+        detailClipContainerMaxY: CGFloat
+    ) -> String {
+        var owners: [String] = []
+        if abs(visibleBottomY - cardOuterMaxY) <= bottomEdgeStableEpsilon {
+            owners.append("cardOuterBottom")
+        }
+        if abs(visibleBottomY - cardBorderMaxY) <= bottomEdgeStableEpsilon {
+            owners.append("cardBorderBottom")
+        }
+        if abs(visibleBottomY - detailClipContainerMaxY) <= bottomEdgeStableEpsilon {
+            owners.append("detailClipContainerBottom")
+        }
+        return owners.isEmpty ? "none" : owners.joined(separator: "|")
+    }
+
+    private func captureBottomEdgeShiftWindowIfNeeded(sampleMessage: String, shiftTriggerField: String?) {
+        probeBottomEdgeRecentSampleMessages.append(sampleMessage)
+        if probeBottomEdgeRecentSampleMessages.count > bottomEdgeShiftReplayPreSamples + 1 {
+            probeBottomEdgeRecentSampleMessages.removeFirst(
+                probeBottomEdgeRecentSampleMessages.count - (bottomEdgeShiftReplayPreSamples + 1)
+            )
+        }
+
+        if !probeBottomEdgeShiftDetected, let shiftTriggerField {
+            probeBottomEdgeShiftDetected = true
+            probeBottomEdgeShiftTriggerField = shiftTriggerField
+            probeBottomEdgeShiftWindowMessages = probeBottomEdgeRecentSampleMessages
+            probeBottomEdgeShiftPostSamplesRemaining = bottomEdgeShiftReplayPostSamples
+            return
+        }
+
+        guard probeBottomEdgeShiftDetected else { return }
+        guard probeBottomEdgeShiftPostSamplesRemaining > 0 else { return }
+        if probeBottomEdgeShiftWindowMessages.last != sampleMessage {
+            probeBottomEdgeShiftWindowMessages.append(sampleMessage)
+        }
+        probeBottomEdgeShiftPostSamplesRemaining -= 1
+    }
+
+    private func traceBottomEdgeOwnerSample(
+        logID: UUID,
+        renderIdentity: String,
+        isHeightAnimating: Bool
+    ) {
+        guard tableState.topEdgeProbeActive else { return }
+        guard tableState.topEdgeProbeTargetID == logID else { return }
+        guard isHeightAnimating else { return }
+        guard probeBottomEdgeSample < bottomEdgeProbeMaxSamples else { return }
+        guard probeCardFrame.height > 0 else { return }
+
+        let rowMaxYValue = probeRowContainerFrame.maxY
+        let cardOuterMaxYValue = probeCardFrame.maxY
+        let cardBorderMaxYValue = probeCardBorderFrame.maxY
+        let detailClipContainerMaxYValue = probeDetailClipContainerFrame.maxY
+        let cardVisibleBottomEdgeMaxYValue = max(cardOuterMaxYValue, max(cardBorderMaxYValue, detailClipContainerMaxYValue))
+
+        if probeBottomEdgeBaselineRowMaxY == nil {
+            probeBottomEdgeBaselineRowMaxY = rowMaxYValue
+            probeBottomEdgeBaselineCardOuterMaxY = cardOuterMaxYValue
+            probeBottomEdgeBaselineCardBorderMaxY = cardBorderMaxYValue
+            probeBottomEdgeBaselineDetailClipContainerMaxY = detailClipContainerMaxYValue
+            probeBottomEdgeBaselineCardVisibleBottomEdgeMaxY = cardVisibleBottomEdgeMaxYValue
+        }
+
+        let baselineRowMaxY = probeBottomEdgeBaselineRowMaxY ?? rowMaxYValue
+        let baselineCardOuterMaxY = probeBottomEdgeBaselineCardOuterMaxY ?? cardOuterMaxYValue
+        let baselineCardBorderMaxY = probeBottomEdgeBaselineCardBorderMaxY ?? cardBorderMaxYValue
+        let baselineDetailClipContainerMaxY = probeBottomEdgeBaselineDetailClipContainerMaxY ?? detailClipContainerMaxYValue
+        let baselineCardVisibleBottomEdgeMaxY = probeBottomEdgeBaselineCardVisibleBottomEdgeMaxY ?? cardVisibleBottomEdgeMaxYValue
+
+        let rowMaxYShiftFromStart = rowMaxYValue - baselineRowMaxY
+        let cardOuterMaxYShiftFromStart = cardOuterMaxYValue - baselineCardOuterMaxY
+        let cardBorderMaxYShiftFromStart = cardBorderMaxYValue - baselineCardBorderMaxY
+        let detailClipContainerMaxYShiftFromStart = detailClipContainerMaxYValue - baselineDetailClipContainerMaxY
+        let cardVisibleBottomEdgeMaxYShiftFromStart = cardVisibleBottomEdgeMaxYValue - baselineCardVisibleBottomEdgeMaxY
+        let visibleBottomEdgeOwners = bottomEdgeOwnerCandidates(
+            visibleBottomY: cardVisibleBottomEdgeMaxYValue,
+            cardOuterMaxY: cardOuterMaxYValue,
+            cardBorderMaxY: cardBorderMaxYValue,
+            detailClipContainerMaxY: detailClipContainerMaxYValue
+        )
+
+        let rowMaxY = formatted(rowMaxYValue)
+        let cardOuterMaxY = formatted(cardOuterMaxYValue)
+        let cardBorderMaxY = formatted(cardBorderMaxYValue)
+        let detailClipContainerMaxY = formatted(detailClipContainerMaxYValue)
+        let cardVisibleBottomEdgeMaxY = formatted(cardVisibleBottomEdgeMaxYValue)
+        let rowShift = formatted(rowMaxYShiftFromStart)
+        let cardOuterShift = formatted(cardOuterMaxYShiftFromStart)
+        let cardBorderShift = formatted(cardBorderMaxYShiftFromStart)
+        let detailClipContainerShift = formatted(detailClipContainerMaxYShiftFromStart)
+        let cardVisibleBottomEdgeShift = formatted(cardVisibleBottomEdgeMaxYShiftFromStart)
+        let visibleToOuterBottomDelta = formatted(cardVisibleBottomEdgeMaxYValue - cardOuterMaxYValue)
+        let visibleToBorderBottomDelta = formatted(cardVisibleBottomEdgeMaxYValue - cardBorderMaxYValue)
+        let visibleToDetailClipBottomDelta = formatted(cardVisibleBottomEdgeMaxYValue - detailClipContainerMaxYValue)
+        let shiftTriggerField: String? = {
+            if abs(cardVisibleBottomEdgeMaxYShiftFromStart) > bottomEdgeStableEpsilon {
+                return "cardVisibleBottomEdgeMaxYShiftFromStart"
+            }
+            if abs(cardOuterMaxYShiftFromStart) > bottomEdgeStableEpsilon {
+                return "cardOuterMaxYShiftFromStart"
+            }
+            if abs(cardBorderMaxYShiftFromStart) > bottomEdgeStableEpsilon {
+                return "cardBorderMaxYShiftFromStart"
+            }
+            if abs(detailClipContainerMaxYShiftFromStart) > bottomEdgeStableEpsilon {
+                return "detailClipContainerMaxYShiftFromStart"
+            }
+            return nil
+        }()
+        let direction = tableState.topEdgeProbeDirection
+        let signature =
+            "\(rowMaxY)|\(cardOuterMaxY)|\(cardBorderMaxY)|\(detailClipContainerMaxY)|\(cardVisibleBottomEdgeMaxY)|\(rowShift)|\(cardOuterShift)|\(cardBorderShift)|\(detailClipContainerShift)|\(cardVisibleBottomEdgeShift)|\(direction)|\(probeGeometryTrigger)|\(tableState.layoutPassID)|\(visibleBottomEdgeOwners)"
+        guard signature != probeBottomEdgeLastSignature else { return }
+        probeBottomEdgeLastSignature = signature
+        probeBottomEdgeSample += 1
+        captureBottomEdgeBeginReplayMessageIfNeeded(logID: logID)
+        let sampleMessage =
+            "\(renderIdentity) probeSession=\(tableState.topEdgeProbeSession) probeSample=\(probeBottomEdgeSample) probeSampleLimit=\(bottomEdgeProbeMaxSamples) rowToken=\(probeRowToken) coordinateSpace=rowLocal direction=\(direction) trigger=\(probeGeometryTrigger) rowMaxY=\(rowMaxY) cardOuterMaxY=\(cardOuterMaxY) cardBorderMaxY=\(cardBorderMaxY) detailClipContainerMaxY=\(detailClipContainerMaxY) cardVisibleBottomEdgeMaxY=\(cardVisibleBottomEdgeMaxY) visibleBottomEdgeOwners=\(visibleBottomEdgeOwners) visibleBottomEdgeToOuterBottomDeltaY=\(visibleToOuterBottomDelta) visibleBottomEdgeToBorderBottomDeltaY=\(visibleToBorderBottomDelta) visibleBottomEdgeToDetailClipBottomDeltaY=\(visibleToDetailClipBottomDelta) rowMaxYShiftFromStart=\(rowShift) cardOuterMaxYShiftFromStart=\(cardOuterShift) cardBorderMaxYShiftFromStart=\(cardBorderShift) detailClipContainerMaxYShiftFromStart=\(detailClipContainerShift) cardVisibleBottomEdgeMaxYShiftFromStart=\(cardVisibleBottomEdgeShift) \(phaseProbeContext(logID: logID)) \(siblingProbeContext(logID: logID)) \(ownerStackProbeContext(logID: logID)) targetID=\(logID.uuidString)"
+        if probeBottomEdgeEarlySampleMessages.count < bottomEdgeProbeReplaySampleCount {
+            probeBottomEdgeEarlySampleMessages.append(sampleMessage)
+        }
+        captureBottomEdgeShiftWindowIfNeeded(sampleMessage: sampleMessage, shiftTriggerField: shiftTriggerField)
+
+        traceHostedRow(
+            "swiftui.row.bottomEdgeProbe.sample",
+            sampleMessage
+        )
+    }
+
+    private func captureBottomEdgeBeginReplayMessageIfNeeded(logID: UUID) {
+        guard tableState.topEdgeProbeTargetID == logID else { return }
+        guard probeBottomEdgeBeginReplayMessage == nil else { return }
+        probeBottomEdgeReplayTargetID = logID
+        probeBottomEdgeBeginReplayMessage =
+            "session=\(tableState.topEdgeProbeSession) direction=\(tableState.topEdgeProbeDirection) target=\(logID.uuidString) rowToken=\(probeRowToken)"
+    }
+
+    private func emitBottomEdgeReplayIfNeeded(logID: UUID) {
+        guard probeBottomEdgeReplayTargetID == logID else { return }
+        guard let beginMessage = probeBottomEdgeBeginReplayMessage else { return }
+        traceHostedRow("probe.bottomEdge.begin", "\(beginMessage) replay=tail")
+        if probeBottomEdgeShiftDetected, !probeBottomEdgeShiftWindowMessages.isEmpty {
+            traceHostedRow(
+                "probe.bottomEdge.shiftCapture",
+                "session=\(tableState.topEdgeProbeSession) direction=\(tableState.topEdgeProbeDirection) target=\(logID.uuidString) triggerField=\(probeBottomEdgeShiftTriggerField) retainedSamples=\(probeBottomEdgeShiftWindowMessages.count) preSamples=\(bottomEdgeShiftReplayPreSamples) postSamples=\(bottomEdgeShiftReplayPostSamples) replay=tail"
+            )
+            for sampleMessage in probeBottomEdgeShiftWindowMessages {
+                traceHostedRow("swiftui.row.bottomEdgeProbe.sample", "\(sampleMessage) replay=shiftWindow")
+            }
+        } else {
+            for sampleMessage in probeBottomEdgeEarlySampleMessages.prefix(bottomEdgeProbeReplaySampleCount) {
+                traceHostedRow("swiftui.row.bottomEdgeProbe.sample", "\(sampleMessage) replay=tail")
+            }
+        }
+        probeBottomEdgeReplayTargetID = nil
+        probeBottomEdgeBeginReplayMessage = nil
+        probeBottomEdgeEarlySampleMessages = []
+        probeBottomEdgeRecentSampleMessages = []
+        probeBottomEdgeShiftWindowMessages = []
+        probeBottomEdgeShiftDetected = false
+        probeBottomEdgeShiftTriggerField = "none"
+        probeBottomEdgeShiftPostSamplesRemaining = 0
     }
 
     private func captureLocalStateReplayIfNeeded(
@@ -2563,12 +2840,10 @@ private struct LogRowCardView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
-                                detailVisibleHeight = proxy.size.height
-                                onDetailHeightChange(proxy.size.height)
+                                onDetailClipContainerFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
                             }
-                            .onChange(of: proxy.size.height) { _, newHeight in
-                                detailVisibleHeight = newHeight
-                                onDetailHeightChange(newHeight)
+                            .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
+                                onDetailClipContainerFrameChange(newFrame)
                             }
                     }
                 )
@@ -2576,10 +2851,12 @@ private struct LogRowCardView: View {
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {
-                                onDetailClipContainerFrameChange(proxy.frame(in: .named(geometryCoordinateSpaceName)))
+                                detailVisibleHeight = proxy.size.height
+                                onDetailHeightChange(proxy.size.height)
                             }
-                            .onChange(of: proxy.frame(in: .named(geometryCoordinateSpaceName))) { _, newFrame in
-                                onDetailClipContainerFrameChange(newFrame)
+                            .onChange(of: proxy.size.height) { _, newHeight in
+                                detailVisibleHeight = newHeight
+                                onDetailHeightChange(newHeight)
                             }
                     }
                 )
